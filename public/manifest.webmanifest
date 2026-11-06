@@ -1,0 +1,19 @@
+{
+  "name": "Finanzas familiares",
+  "short_name": "Finanzas",
+  "description": "Lleva las cuentas de casa mes a mes: qué entra, qué sale y a dónde va cada euro. Tus datos se quedan en tu teléfono.",
+  "lang": "es-ES",
+  "dir": "ltr",
+  "start_url": "./#/resumen",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f6f5",
+  "theme_color": "#0d7a6e",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

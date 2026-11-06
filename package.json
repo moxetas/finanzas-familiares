@@ -1,0 +1,21 @@
+{
+  "name": "finanzas-familiares",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Finanzas familiares: app web instalable para llevar lo que entra, lo que sale y a dónde va cada euro. Los datos se quedan en tu teléfono.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
+  }
+}
