@@ -21,7 +21,7 @@ Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve *
 | **Resumen** | Dinero total a fin de año, ingresos, gasto real, apartado y lo que sobra. Gráfico del saldo de cada cuenta, gráfico de ingresos frente a gasto real y tabla mes a mes. |
 | **Meses** | Selector de año: los meses de años anteriores (por ejemplo 2026) se ven tal como estaban en la hoja y sus cifras se pueden corregir; el total se recalcula. Del año planificado, una cuadrícula por mes: una fila por partida y una columna por cuenta, con saldo inicial, total del mes y saldo previsto a fin de mes. Tocar un importe lo cambia **solo ese mes**. Debajo, los **saldos reales** a fin de mes (con la diferencia frente a lo previsto) y los **apuntes del mes** (gastos o ingresos no previstos). |
 | **Domiciliaciones** | Lista de cobros fijos con su cuenta actual y la de destino (se carga con la copia JSON). |
-| **Avisos** | Pagos que no son mensuales en los próximos 7 días, en los próximos 30 y el resto agrupado por mes, con la marca «estimado». |
+| **Avisos** | Pagos que no son mensuales en los próximos 7 días, en los próximos 30 y el resto agrupado por mes, con la marca «estimado». Avisos en el móvil una semana antes y el día de antes (ver abajo). |
 | **Ajustes** | Año a planificar, cuentas, conceptos de cada mes, pagos no mensuales, copia de seguridad, compartir la app, instalarla, tema claro u oscuro, cargar el ejemplo o empezar de cero. |
 
 ### Tipos de concepto
@@ -34,6 +34,20 @@ Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve *
 En la copia JSON, cada concepto o pago puede llevar además `note` (se ve en una columna de notas), `estimated` y `group` (bloque de la tabla, en el orden de `config.sections`), y `config.debts` describe una deuda que baja con los pagos cuyo concepto empieza por un texto (por ejemplo una tarjeta).
 
 Cada concepto tiene un rango de meses (*desde / hasta*), así que una paga extra o un gimnasio de seis meses se apuntan una sola vez.
+
+## Avisos de pagos
+
+La app avisa de cada pago no mensual **una semana antes** y **el día de antes**. Sin servidor, cada móvil lo permite de una forma:
+
+| Cómo | Dónde funciona | Qué hace |
+| --- | --- | --- |
+| **Al abrir la app** | En todos | Sale una ventana con los pagos de hoy, de mañana y de los próximos 7 días que aún no se habían avisado en ese móvil. |
+| **Notificaciones con la app cerrada** | Android con Chrome o Edge, con la app instalada | En *Avisos → Avisos en el móvil → Activar notificaciones*. El navegador despierta la app más o menos una vez al día (*periodic background sync*) y muestra los avisos que tocan. |
+| **Calendario** | En todos, también iPhone | *Avisos → Añadir pagos al calendario* descarga un archivo `.ics` con un evento por pago y dos alarmas (una semana antes y el día de antes, a las 9:00). El calendario del móvil avisa aunque no se abra la app. Si cambian los pagos, hay que volver a añadirlos. |
+
+En iPhone, iOS no deja que una web instalada se despierte sola sin un servidor de notificaciones, así que allí los avisos con la app cerrada llegan por el calendario.
+
+Cada aviso se muestra una vez por móvil (se recuerda por fecha, concepto y tipo, en IndexedDB, sin sincronizarse). Con el ejemplo ficticio no se avisa de nada. La regla está en [`src/calc/reminders.ts`](src/calc/reminders.ts) y el archivo de calendario en [`src/storage/calendar.ts`](src/storage/calendar.ts), los dos con pruebas; el service worker solo lee los avisos que la app deja preparados.
 
 ## Instalarla en el móvil
 

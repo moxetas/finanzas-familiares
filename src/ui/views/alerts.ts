@@ -4,11 +4,15 @@ import { upcomingPayments, type UpcomingPayment } from '../../calc/engine';
 import { todayISO } from '../../calc/keys';
 import { sum } from '../../calc/money';
 import { fmtDate, fmtMoney, fmtYearMonth, t } from '../../i18n';
-import { card, chip, empty, money, pageHeader } from '../components';
+import { exportCalendar } from '../calendar-actions';
+import { button, card, chip, empty, money, pageHeader } from '../components';
 import type { Ctx } from '../context';
 import { h } from '../dom';
 import { editPayment } from '../forms';
 import { icon } from '../icons';
+import { isIOS } from '../install';
+import { backgroundSupported, enableNotifications, permission } from '../notify';
+import { toast } from '../toast';
 
 function when(p: UpcomingPayment): string {
   if (p.inDays === 0) return t('alerts.today');
@@ -52,6 +56,48 @@ function total(payments: UpcomingPayment[]): HTMLElement | null {
   return h('p', { class: 'group-total' }, t('alerts.groupTotal', { amount: fmtMoney(-sum(payments.map((p) => p.amount))) }));
 }
 
+/** Cómo avisa la app en este móvil: al abrirla, con notificaciones y con el calendario. */
+function notifyCard(ctx: Ctx): HTMLElement {
+  const perm = permission();
+  let status: string;
+  let enable: HTMLElement | null = null;
+  if (!backgroundSupported()) status = t('notify.unsupported');
+  else if (perm === 'denied') status = t('notify.denied');
+  else if (perm === 'granted') status = ctx.store.state.meta.notifyBackground ? t('notify.on') : t('notify.onNoBackground');
+  else {
+    status = t('notify.sub');
+    enable = button(t('notify.enable'), {
+      icon: 'alerts',
+      kind: 'primary',
+      focusKey: 'notify-enable',
+      onClick: async () => {
+        const result = await enableNotifications();
+        ctx.store.setMeta({ notifyBackground: result.background });
+        toast(result.permission === 'granted' ? t('notify.toast.on') : t('notify.toast.off'));
+      },
+    });
+  }
+  return card(
+    { title: t('notify.title'), sub: t('notify.sub'), id: 'notify' },
+    ctx.data.config.example ? h('p', { class: 'warn-note' }, t('notify.example')) : null,
+    h(
+      'ul',
+      { class: 'notify-list' },
+      h('li', null, icon('info', 18), h('span', null, t('notify.onOpen'))),
+      h('li', null, icon('alerts', 18), h('span', null, status)),
+    ),
+    h(
+      'div',
+      { class: 'button-row' },
+      enable,
+      button(t('calendar.button'), { icon: 'months', focusKey: 'calendar-export', onClick: () => void exportCalendar(ctx) }),
+    ),
+    h('p', { class: 'field-hint' }, t('calendar.help')),
+    isIOS() ? h('p', { class: 'field-hint' }, t('calendar.helpIOS')) : null,
+    h('p', { class: 'field-hint' }, t('calendar.privacy')),
+  );
+}
+
 export function alertsView(ctx: Ctx): HTMLElement {
   const { config, overrides } = ctx.data;
   const up = upcomingPayments(config, overrides, todayISO());
@@ -73,5 +119,6 @@ export function alertsView(ctx: Ctx): HTMLElement {
               : empty(t('alerts.none.later')),
           ),
         ],
+    notifyCard(ctx),
   );
 }

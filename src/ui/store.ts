@@ -11,6 +11,8 @@ import { exampleData } from '../storage/example';
 import { todayISO } from '../calc/keys';
 import { t } from '../i18n';
 import { Sync } from '../storage/sync';
+import { pruneShown } from '../calc/reminders';
+import { buildReminderFile } from './reminder-file';
 
 export interface State {
   data: AppData;
@@ -63,6 +65,7 @@ export class Store {
     }
     const store = new Store(local, { data, meta, storage: local.kind, persisted: false });
     if (!stored) await store.persist();
+    else store.saveReminders();
     store.askPersistence();
     store.sync.start();
     return store;
@@ -117,11 +120,26 @@ export class Store {
     void this.persist();
   }
 
+  /** Avisos ya mostrados en este aparato. */
+  loadShown(): Promise<string[]> {
+    return this.local.loadShown().catch(() => []);
+  }
+
+  markShown(keys: string[]): Promise<void> {
+    return this.local.addShown(keys, (all) => pruneShown(all, todayISO())).catch(() => undefined);
+  }
+
+  /** Deja preparados los avisos para que el service worker avise con la app cerrada. */
+  private saveReminders(): void {
+    void this.local.saveReminders(buildReminderFile(this.state.data)).catch(() => undefined);
+  }
+
   private persist(): Promise<void> {
     const { data, meta } = this.state;
     const savedAt = new Date().toISOString();
     this.queue = this.queue
       .then(() => this.local.save(data, { ...meta, savedAt }))
+      .then(() => this.saveReminders())
       .then(() => this.channel?.postMessage('saved'))
       .catch((error: unknown) => {
         for (const fn of this.errorListeners) fn(error);

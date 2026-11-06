@@ -12,6 +12,7 @@ import { listenInstall } from './install';
 import { exampleBanner } from './notices';
 import type { Store } from './store';
 import { mountToasts, toast } from './toast';
+import { startReminders } from './reminders';
 import { alertsView } from './views/alerts';
 import { domView } from './views/dom';
 import { monthsView } from './views/months';
@@ -136,4 +137,5 @@ export function mountApp(root: HTMLElement, store: Store): void {
   store.onError(() => toast(t('toast.saveError'), { duration: 8000 }));
   listenInstall(() => render());
   render({ initial: true });
+  startReminders(ctx);
 }

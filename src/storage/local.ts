@@ -14,6 +14,27 @@ export interface Meta {
   installHintDismissed?: boolean;
   /** Tema elegido: automático (según el sistema), claro u oscuro. */
   theme?: 'auto' | 'light' | 'dark';
+  /** Notificaciones con la app cerrada: activadas y comprobación diaria registrada. */
+  notifyBackground?: boolean;
+}
+
+/**
+ * Avisos programados que lee el service worker para avisar con la app cerrada.
+ * Los textos van ya traducidos y formateados: el service worker no calcula nada.
+ */
+export interface ReminderFile {
+  v: 1;
+  labels: { today: string; tomorrow: string; inDays: string; estimated: string };
+  items: {
+    key: string;
+    from: string;
+    until: string;
+    date: string;
+    concept: string;
+    amountText: string;
+    dateText: string;
+    estimated: boolean;
+  }[];
 }
 
 export interface Stored {
@@ -28,6 +49,12 @@ export interface LocalStore {
   load(): Promise<Stored | null>;
   save(data: AppData, meta: Meta): Promise<void>;
   clear(): Promise<void>;
+  /** Avisos ya mostrados en este aparato (no se sincronizan con otros móviles). */
+  loadShown(): Promise<string[]>;
+  /** Añade avisos mostrados; `prune` quita los que ya no hacen falta. */
+  addShown(keys: string[], prune: (all: string[]) => string[]): Promise<void>;
+  /** Guarda los avisos programados para el service worker (solo con IndexedDB). */
+  saveReminders(file: ReminderFile): Promise<void>;
 }
 
 const DB_NAME = 'finanzas-familiares';
@@ -89,6 +116,37 @@ class IDBStore implements LocalStore {
       tx.onerror = () => reject(tx.error);
     });
   }
+
+  async loadShown(): Promise<string[]> {
+    const tx = this.db.transaction(STORE, 'readonly');
+    const value = await req(tx.objectStore(STORE).get('shown'));
+    return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : [];
+  }
+
+  addShown(keys: string[], prune: (all: string[]) => string[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Leer y escribir en la misma transacción: el service worker también lo usa.
+      const tx = this.db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      const get = store.get('shown');
+      get.onsuccess = () => {
+        const prev = Array.isArray(get.result) ? (get.result as unknown[]).filter((k): k is string => typeof k === 'string') : [];
+        store.put(prune([...prev, ...keys]), 'shown');
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  saveReminders(file: ReminderFile): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(file, 'reminders');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
 }
 
 class LSStore implements LocalStore {
@@ -112,6 +170,22 @@ class LSStore implements LocalStore {
   async clear(): Promise<void> {
     localStorage.removeItem(LS_KEY);
   }
+
+  async loadShown(): Promise<string[]> {
+    try {
+      const value: unknown = JSON.parse(localStorage.getItem(`${LS_KEY}:shown`) ?? '[]');
+      return Array.isArray(value) ? value.filter((k): k is string => typeof k === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async addShown(keys: string[], prune: (all: string[]) => string[]): Promise<void> {
+    localStorage.setItem(`${LS_KEY}:shown`, JSON.stringify(prune([...(await this.loadShown()), ...keys])));
+  }
+
+  /** El service worker no puede leer localStorage: aquí no hay avisos con la app cerrada. */
+  async saveReminders(): Promise<void> {}
 }
 
 /** Último recurso: funciona, pero se pierde al cerrar la app. */
@@ -127,6 +201,14 @@ class MemoryStore implements LocalStore {
   async clear(): Promise<void> {
     this.value = null;
   }
+  private shown: string[] = [];
+  async loadShown(): Promise<string[]> {
+    return this.shown;
+  }
+  async addShown(keys: string[], prune: (all: string[]) => string[]): Promise<void> {
+    this.shown = prune([...this.shown, ...keys]);
+  }
+  async saveReminders(): Promise<void> {}
 }
 
 function localStorageWorks(): boolean {

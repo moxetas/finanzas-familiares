@@ -1,7 +1,8 @@
 /*
  * Service worker de Finanzas familiares (generado al compilar).
- * Guarda la app para que abra sin conexión. No guarda ni envía datos
- * personales: esos viven en IndexedDB y no pasan por aquí.
+ * Guarda la app para que abra sin conexión y, donde el navegador lo permite,
+ * avisa de los pagos con la app cerrada. No envía nada a ningún sitio: lee los
+ * avisos que la propia app dejó preparados en IndexedDB.
  */
 const VERSION = '__VERSION__';
 const PREFIX = 'finanzas-familiares-';
@@ -41,4 +42,119 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(caches.match(req, { cacheName: CACHE, ignoreSearch: true }).then((hit) => hit || fetch(req)));
+});
+
+// ── Avisos de pagos con la app cerrada ─────────────────────────────────────
+// El navegador despierta al service worker más o menos una vez al día
+// («periodic background sync», Chrome y Edge en Android con la app instalada).
+// La app deja en IndexedDB los avisos ya calculados y traducidos; aquí solo se
+// mira cuáles tocan hoy y no se han mostrado todavía.
+
+const DB_NAME = 'finanzas-familiares';
+const DB_STORE = 'kv';
+const PERIODIC_TAG = 'avisos-pagos';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open(DB_NAME, 1);
+    open.onupgradeneeded = () => {
+      if (!open.result.objectStoreNames.contains(DB_STORE)) open.result.createObjectStore(DB_STORE);
+    };
+    open.onsuccess = () => resolve(open.result);
+    open.onerror = () => reject(open.error);
+  });
+}
+
+function idbGet(db, key) {
+  return new Promise((resolve, reject) => {
+    const r = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(key);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+/** Añade los avisos mostrados y olvida los de pagos de hace más de 40 días. */
+function idbAddShown(db, keys, today) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    const store = tx.objectStore(DB_STORE);
+    const get = store.get('shown');
+    get.onsuccess = () => {
+      const prev = Array.isArray(get.result) ? get.result : [];
+      const limit = shiftDate(today, -40);
+      const all = Array.from(new Set(prev.concat(keys))).filter((k) => typeof k === 'string' && k.slice(0, 10) >= limit);
+      store.put(all, 'shown');
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+function localToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+}
+
+function shiftDate(iso, days) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+function daysBetween(a, b) {
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
+async function notifyDuePayments() {
+  const db = await openDB();
+  const file = await idbGet(db, 'reminders');
+  if (!file || !Array.isArray(file.items)) return;
+  const today = localToday();
+  const shown = new Set((await idbGet(db, 'shown')) || []);
+  const due = file.items.filter((r) => r.from <= today && today <= r.until && !shown.has(r.key));
+  for (const r of due) {
+    const n = daysBetween(today, r.date);
+    const when = n <= 0 ? file.labels.today : n === 1 ? file.labels.tomorrow : file.labels.inDays.replace('{n}', String(n));
+    await self.registration.showNotification(when + ': ' + r.concept, {
+      body: r.amountText + ' · ' + r.dateText + (r.estimated ? ' (' + file.labels.estimated + ')' : ''),
+      tag: r.key,
+      icon: 'icons/icon-192.png',
+      data: { url: './#/avisos' },
+    });
+  }
+  if (due.length) await idbAddShown(db, due.map((r) => r.key), today);
+  // Número en el icono: pagos de hoy a 7 días.
+  const week = new Set(file.items.filter((r) => r.from <= today && today <= r.until).map((r) => r.date + '|' + r.concept)).size;
+  if (self.navigator.setAppBadge) {
+    try {
+      if (week) await self.navigator.setAppBadge(week);
+      else await self.navigator.clearAppBadge();
+    } catch (e) {
+      /* sin permiso para el número del icono */
+    }
+  }
+}
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === PERIODIC_TAG) event.waitUntil(notifyDuePayments().catch(() => undefined));
+});
+
+// Tocar la notificación abre la app (o la trae al frente) en Avisos.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.startsWith(self.registration.scope) && 'focus' in client) {
+          if ('navigate' in client) client.navigate(url).catch(() => undefined);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
 });
