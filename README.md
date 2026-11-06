@@ -2,12 +2,14 @@
 
 App web instalable (PWA) para llevar las cuentas de casa mes a mes: qué entra, qué sale y a dónde va cada euro.
 
-Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve **solo sus propios datos**. No hay registro, ni servidor, ni analítica. Puedes compartir el enlace con quien quieras: cada persona empieza con su app vacía (o con el ejemplo) y lo que escribe se queda en su teléfono.
+Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve **solo sus propios datos**. No hay registro ni analítica. Puedes compartir el enlace con quien quieras: cada persona empieza con su app vacía (o con el ejemplo) y lo que escribe se queda en su teléfono, salvo que active la **sincronización** opcional para compartir las cuentas con su pareja o familia.
 
 ## Privacidad
 
 - Los datos se guardan **solo en el navegador de cada aparato** (IndexedDB; si no está disponible, localStorage). Aunque todos usen el mismo enlace, nadie puede ver los datos de otro.
-- La app no hace **ninguna petición de red con datos**. La página lleva una política de seguridad (CSP) que solo deja cargar archivos de su propio sitio: ni CDN, ni analítica, ni rastreadores.
+- Sin sincronización, la app no hace **ninguna petición de red con datos**. La página lleva una política de seguridad (CSP) que solo deja conectar con su propio sitio y con la base de datos de la sincronización: ni CDN, ni analítica, ni rastreadores.
+- **Sincronización (opcional)**: en *Ajustes → Sincronizar con otros móviles* se crea un código de familia (20 letras y cifras al azar) o se pega uno. Los datos se guardan en Firebase Realtime Database bajo `/familias/<código>/finanzas` (la misma base y las mismas reglas que *Menú familiar*, así que sirve el mismo código). Quien tenga el código puede ver y cambiar las cuentas: no lo publiques. Se envía solo lo que cambia, funciona sin cobertura y, si dos personas cambian lo mismo a la vez, gana el último. Al conectar un móvil que ya tiene datos a un código que también los tiene, la app pregunta con cuáles quedarse.
+- **Nunca subas tus datos al repositorio**: los archivos `*.json` de copia (y `datos-privados/`) están en `.gitignore`.
 - El repositorio no contiene datos personales de nadie. El ejemplo de la primera vez es **ficticio** y lo dice en pantalla.
 - No hace falta (ni se debe) escribir números de cuenta, IBAN o contraseñas: con el nombre de la cuenta basta. La app lo recuerda junto al campo.
 - **Copia de seguridad**: en *Ajustes → Copia de seguridad* se exporta un archivo JSON con todo, y se importa en otro aparato o tras borrar el navegador. Si se borran los datos del navegador sin copia, se pierden. La app recuerda hacer copia si hace más de 30 días de la última.
@@ -17,7 +19,8 @@ Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve *
 | Pantalla | Qué tiene |
 | --- | --- |
 | **Resumen** | Dinero total a fin de año, ingresos, gasto real, apartado y lo que sobra. Gráfico del saldo de cada cuenta, gráfico de ingresos frente a gasto real y tabla mes a mes. |
-| **Meses** | Una cuadrícula por mes: una fila por partida y una columna por cuenta, con saldo inicial, total del mes y saldo previsto a fin de mes. Tocar un importe lo cambia **solo ese mes**. Debajo, los **saldos reales** a fin de mes (con la diferencia frente a lo previsto) y los **apuntes del mes** (gastos o ingresos no previstos). |
+| **Meses** | Selector de año: los meses de años anteriores (por ejemplo 2026) se ven tal como estaban en la hoja y sus cifras se pueden corregir; el total se recalcula. Del año planificado, una cuadrícula por mes: una fila por partida y una columna por cuenta, con saldo inicial, total del mes y saldo previsto a fin de mes. Tocar un importe lo cambia **solo ese mes**. Debajo, los **saldos reales** a fin de mes (con la diferencia frente a lo previsto) y los **apuntes del mes** (gastos o ingresos no previstos). |
+| **Domiciliaciones** | Lista de cobros fijos con su cuenta actual y la de destino (se carga con la copia JSON). |
 | **Avisos** | Pagos que no son mensuales en los próximos 7 días, en los próximos 30 y el resto agrupado por mes, con la marca «estimado». |
 | **Ajustes** | Año a planificar, cuentas, conceptos de cada mes, pagos no mensuales, copia de seguridad, compartir la app, instalarla, tema claro u oscuro, cargar el ejemplo o empezar de cero. |
 
@@ -25,7 +28,10 @@ Cualquiera abre el enlace, la instala en la pantalla de inicio del móvil y ve *
 
 - **Ingreso**: entra en una cuenta.
 - **Gasto**: sale de una cuenta.
-- **Ahorro o traspaso**: pasa de una cuenta a otra (o sale de tus cuentas, si el destino es «Fuera de mis cuentas»). **No cuenta como gasto.**
+- **Ahorro o traspaso**: pasa de una cuenta a otra (o sale de tus cuentas, si el destino es «Fuera de mis cuentas»). **No cuenta como gasto.** También puede venir **desde fuera** (p. ej. lo que ingresa la empresa en un plan de ahorro): suma en la cuenta destino pero no cuenta como ingreso ni como ahorro tuyo.
+- **Cuenta de gasto diario**: una cuenta marcada así (p. ej. la conjunta de la compra) no guarda saldo: lo que se le traspasa cuenta como gasto y a fin de mes aparece «se gasta».
+
+En la copia JSON, cada concepto o pago puede llevar además `note` (se ve en una columna de notas), `estimated` y `group` (bloque de la tabla, en el orden de `config.sections`), y `config.debts` describe una deuda que baja con los pagos cuyo concepto empieza por un texto (por ejemplo una tarjeta).
 
 Cada concepto tiene un rango de meses (*desde / hasta*), así que una paga extra o un gimnasio de seis meses se apuntan una sola vez.
 

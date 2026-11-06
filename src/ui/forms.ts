@@ -12,6 +12,7 @@ import {
   removeEntry,
   removeItem,
   removePayment,
+  setHistoryCell,
   setItemOverride,
   setPaymentOverride,
   updateAccount,
@@ -43,6 +44,7 @@ export function editAccount(ctx: Ctx, index: number | null): void {
   const fields = {
     name: textField({ label: t('field.name'), value: current?.name ?? '', maxlength: LIMITS.name, hint: t('settings.accounts.noNumbers') }),
     initial: amountField({ label: t('field.initial'), value: current?.initial ?? 0, allowNegative: true }),
+    spent: checkboxField({ label: t('field.spent'), checked: current?.spent === true }),
   };
   const actions: DialogAction[] = [];
   if (index !== null) actions.push(deleteAction(() => deleteAccount(ctx, index)));
@@ -54,14 +56,14 @@ export function editAccount(ctx: Ctx, index: number | null): void {
       onClick: () => {
         const v = readAll(fields);
         if (!v) return false;
-        const account = { name: v.name, initial: v.initial ?? 0 };
+        const account = { name: v.name, initial: v.initial ?? 0, ...(v.spent ? { spent: true } : {}) };
         ctx.commit(index === null ? addAccount(ctx.data, account) : updateAccount(ctx.data, index, account));
       },
     },
   );
   openDialog({
     title: index === null ? t('account.new') : t('account.edit'),
-    content: [fields.name.el, fields.initial.el],
+    content: [fields.name.el, fields.initial.el, fields.spent.el],
     actions,
   });
 }
@@ -124,7 +126,7 @@ export function editItem(ctx: Ctx, index: number | null): void {
   });
   const name = textField({ label: t('field.name'), value: current?.name ?? '', maxlength: LIMITS.name });
   const amount = amountField({ label: t('field.amount'), value: current?.amount ?? null });
-  const account = selectField({ label: t('field.account'), options: accounts, value: current?.account ?? 0 });
+  const account = selectField({ label: t('field.account'), options: [...accounts, { value: -1, label: t('field.from.outside') }], value: current?.account ?? 0 });
   const toOptions = [...accounts, { value: -1, label: t('field.to.outside') }];
   const defaultTo = current && current.type === 'Ahorro' ? current.to : (accounts.find((a) => a.value !== (current?.account ?? 0))?.value ?? -1);
   const to = selectField({ label: t('field.to'), options: toOptions, value: defaultTo });
@@ -137,6 +139,9 @@ export function editItem(ctx: Ctx, index: number | null): void {
     to.el.hidden = !isSaving;
     accountLabel.textContent = isSaving ? t('field.from') : t('field.account');
     // El destino no puede ser la misma cuenta de origen.
+    // «Desde fuera» solo tiene sentido en un ahorro (p. ej. lo que paga la empresa).
+    for (const opt of Array.from(account.select.options)) if (opt.value === '-1') opt.disabled = !isSaving;
+    if (!isSaving && account.select.value === '-1') account.select.value = '0';
     const origin = account.select.value;
     for (const opt of Array.from(to.select.options)) opt.disabled = opt.value === origin;
     if (to.select.value === origin) to.select.value = String(accounts.find((a) => String(a.value) !== origin)?.value ?? -1);
@@ -335,4 +340,29 @@ export function editOverride(ctx: Ctx, line: Line, month: number): void {
     actions,
   });
   amount.input.select();
+}
+
+// ── Cifra de un mes de años anteriores ───────────────────────────────────────
+
+export function editHistoryCell(ctx: Ctx, ym: string, row: number, col: number, label: string): void {
+  const m = ctx.data.history?.[ym];
+  const original = m?.rows[row]?.v[col] ?? null;
+  const key = `${ym}_r${row}_c${col}`;
+  const current = ctx.data.overrides[key];
+  const amount = amountField({ label: t('field.amount'), value: current ?? original, allowNegative: true, hint: t('history.cell.hint') });
+  const actions: DialogAction[] = [];
+  if (current !== undefined) actions.push({ label: t('action.reset'), kind: 'danger', onClick: () => ctx.commit(setHistoryCell(ctx.data, ym, row, col, null)) });
+  actions.push(
+    { label: t('action.cancel') },
+    {
+      label: t('action.save'),
+      submit: true,
+      onClick: () => {
+        const v = readAll({ amount });
+        if (!v) return false;
+        ctx.commit(setHistoryCell(ctx.data, ym, row, col, v.amount ?? 0));
+      },
+    },
+  );
+  openDialog({ title: label, content: [amount.el], actions });
 }

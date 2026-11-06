@@ -55,3 +55,8 @@ export function daysBetween(a: string, b: string): number {
 export function todayISO(now: Date = new Date()): string {
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 }
+
+/** Cifra cambiada en un mes de `history`: `"AAAA-MM_r<fila>_c<columna>"`. */
+export function historyCellKey(ym: string, row: number, col: number): string {
+  return `${ym}_r${row}_c${col}`;
+}

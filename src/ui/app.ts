@@ -13,12 +13,13 @@ import { exampleBanner } from './notices';
 import type { Store } from './store';
 import { mountToasts, toast } from './toast';
 import { alertsView } from './views/alerts';
+import { domView } from './views/dom';
 import { monthsView } from './views/months';
 import { settingsView } from './views/settings';
 import { summaryView } from './views/summary';
 
 interface Route {
-  name: 'resumen' | 'meses' | 'avisos' | 'ajustes';
+  name: 'resumen' | 'meses' | 'avisos' | 'dom' | 'ajustes';
   param?: string;
 }
 
@@ -26,12 +27,13 @@ const TABS: { name: Route['name']; label: MessageKey; icon: IconName }[] = [
   { name: 'resumen', label: 'nav.summary', icon: 'summary' },
   { name: 'meses', label: 'nav.months', icon: 'months' },
   { name: 'avisos', label: 'nav.alerts', icon: 'alerts' },
+  { name: 'dom', label: 'nav.dom', icon: 'dom' },
   { name: 'ajustes', label: 'nav.settings', icon: 'settings' },
 ];
 
 function parseRoute(hash: string): Route {
   const [name, param] = hash.replace(/^#\/?/, '').split('/');
-  if (name === 'meses' || name === 'avisos' || name === 'ajustes' || name === 'resumen') return { name, param: param || undefined };
+  if (name === 'meses' || name === 'avisos' || name === 'dom' || name === 'ajustes' || name === 'resumen') return { name, param: param || undefined };
   return { name: 'resumen' };
 }
 
@@ -94,6 +96,8 @@ export function mountApp(root: HTMLElement, store: Store): void {
         ? monthsView(ctx, route.param)
         : route.name === 'avisos'
           ? alertsView(ctx)
+          : route.name === 'dom'
+            ? domView(ctx)
           : route.name === 'ajustes'
             ? settingsView(ctx, changed ? route.param : undefined)
             : summaryView(ctx);
@@ -128,6 +132,7 @@ export function mountApp(root: HTMLElement, store: Store): void {
 
   window.addEventListener('hashchange', () => render());
   store.subscribe(() => render());
+  store.sync.subscribe(() => render());
   store.onError(() => toast(t('toast.saveError'), { duration: 8000 }));
   listenInstall(() => render());
   render({ initial: true });

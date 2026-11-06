@@ -54,7 +54,7 @@ const CSP = [
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app",
   "manifest-src 'self'",
   "worker-src 'self'",
   "base-uri 'self'",

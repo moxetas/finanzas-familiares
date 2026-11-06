@@ -3,7 +3,7 @@
  * Todas son puras: devuelven un `AppData` nuevo y no tocan el original.
  */
 
-import { itemOverrideKey, parseIndexedKey, paymentOverrideKey, realBalanceKey } from './keys';
+import { historyCellKey, itemOverrideKey, parseIndexedKey, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2 } from './money';
 import type { Account, AppData, Config, Entry, Item, Payment } from './types';
 
@@ -19,6 +19,8 @@ function cloneData(data: AppData): AppData {
     overrides: { ...data.overrides },
     real_balances: { ...data.real_balances },
     entries: data.entries.map((e) => ({ ...e })),
+    ...(data.history ? { history: data.history } : {}),
+    ...(data.domiciliaciones ? { domiciliaciones: data.domiciliaciones } : {}),
   };
 }
 
@@ -52,7 +54,9 @@ export function addAccount(data: AppData, account: Account): AppData {
 export function updateAccount(data: AppData, index: number, account: Account): AppData {
   if (!data.config.accounts[index]) return data;
   const next = cloneData(data);
-  next.config.accounts[index] = { name: account.name, initial: round2(account.initial) };
+  const { spent: _old, ...rest } = data.config.accounts[index]!;
+  void _old;
+  next.config.accounts[index] = { ...rest, name: account.name, initial: round2(account.initial), ...(account.spent ? { spent: true } : {}) };
   return next;
 }
 
@@ -108,10 +112,11 @@ export function normalizeItem(item: Item): Item {
   let to = Math.min(12, Math.max(1, Math.trunc(item.to_month) || 12));
   if (from > to) [from, to] = [to, from];
   return {
+    ...item,
     name: item.name,
     type: item.type,
     amount: round2(Math.abs(item.amount)),
-    account: item.account,
+    account: item.type === 'Ahorro' ? item.account : Math.max(0, item.account),
     to: item.type === 'Ahorro' && item.to !== item.account ? item.to : -1,
     from_month: from,
     to_month: to,
@@ -127,7 +132,7 @@ export function addItem(data: AppData, item: Item): AppData {
 export function updateItem(data: AppData, index: number, item: Item): AppData {
   if (!data.config.items[index]) return data;
   const next = cloneData(data);
-  next.config.items[index] = normalizeItem(item);
+  next.config.items[index] = normalizeItem({ ...data.config.items[index]!, ...item });
   return next;
 }
 
@@ -144,6 +149,7 @@ export function removeItem(data: AppData, index: number): AppData {
 
 export function normalizePayment(p: Payment): Payment {
   return {
+    ...p,
     date: p.date,
     concept: p.concept,
     amount: round2(Math.abs(p.amount)),
@@ -166,7 +172,7 @@ export function updatePayment(data: AppData, index: number, payment: Payment): A
   const prev = data.config.payments[index];
   if (!prev) return data;
   const next = cloneData(data);
-  next.config.payments[index] = normalizePayment(payment);
+  next.config.payments[index] = normalizePayment({ ...prev, ...payment });
   if (prev.date.slice(0, 7) !== payment.date.slice(0, 7)) {
     delete next.overrides[paymentOverrideKey(prev.date.slice(0, 7), index)];
   }
@@ -186,6 +192,11 @@ export function removePayment(data: AppData, index: number): AppData {
 /** Cambia el importe de un concepto solo en el mes `ym`. `null` vuelve al normal. */
 export function setItemOverride(data: AppData, ym: string, index: number, amount: number | null): AppData {
   return setDictValue(data, 'overrides', itemOverrideKey(ym, index), amount === null ? null : Math.abs(amount));
+}
+
+/** Cambia una cifra de un mes de `history`. `null` vuelve a la original. Puede ser negativa. */
+export function setHistoryCell(data: AppData, ym: string, row: number, col: number, amount: number | null): AppData {
+  return setDictValue(data, 'overrides', historyCellKey(ym, row, col), amount);
 }
 
 export function setPaymentOverride(data: AppData, ym: string, index: number, amount: number | null): AppData {

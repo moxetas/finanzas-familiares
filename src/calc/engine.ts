@@ -46,6 +46,11 @@ export interface Line {
   to: number;
   /** Efecto en cada cuenta (mismo orden que `config.accounts`). */
   deltas: number[];
+  /** Bloque de la tabla (opcional). */
+  group: string;
+  note: string;
+  /** Traspaso a una cuenta «de gasto diario»: cuenta como gasto. */
+  toSpent: boolean;
 }
 
 export type StartSource = 'initial' | 'real' | 'projected';
@@ -78,6 +83,8 @@ export interface MonthResult {
   leftover: number;
   /** Suma de los saldos de cierre de todas las cuentas. */
   totalClosing: number;
+  /** Deudas que quedan por pagar al acabar el mes. */
+  debts: { name: string; account: number; remaining: number; note: string }[];
 }
 
 export interface YearResult {
@@ -153,10 +160,13 @@ export function monthLines(data: AppData, month: number): Line[] {
       amount,
       base: round2(item.amount),
       overridden: override !== undefined,
-      estimated: false,
+      estimated: item.estimated === true,
       account: item.account,
       to,
       deltas,
+      group: item.group ?? '',
+      note: item.note ?? '',
+      toSpent: to >= 0 && config.accounts[to]?.spent === true,
     });
   });
 
@@ -181,6 +191,9 @@ export function monthLines(data: AppData, month: number): Line[] {
       account: payment.account,
       to: -1,
       deltas,
+      group: payment.group ?? '',
+      note: payment.note ?? '',
+      toSpent: false,
     });
   });
 
@@ -202,6 +215,9 @@ export function monthLines(data: AppData, month: number): Line[] {
       account: entry.account,
       to: -1,
       deltas,
+      group: '',
+      note: entry.note,
+      toSpent: false,
     });
   });
 
@@ -226,8 +242,15 @@ export function computeYear(data: AppData): YearResult {
     for (let c = 0; c < n; c++) {
       const real = prevReal[c];
       if (month === 1) {
-        start.push(prevEnd[c]!);
-        startSource.push('initial');
+        // Si se apuntó el saldo real de diciembre del año anterior, manda sobre el inicial.
+        const prevDec = real_balances[realBalanceKey(monthKey(config.year - 1, 12), c)];
+        if (typeof prevDec === 'number' && Number.isFinite(prevDec)) {
+          start.push(round2(prevDec));
+          startSource.push('real');
+        } else {
+          start.push(prevEnd[c]!);
+          startSource.push('initial');
+        }
       } else if (real !== null && real !== undefined) {
         start.push(real);
         startSource.push('real');
@@ -244,11 +267,13 @@ export function computeYear(data: AppData): YearResult {
     for (const line of lines) {
       for (let c = 0; c < n; c++) delta[c] = round2(delta[c]! + line.deltas[c]!);
       if (line.type === 'Ingreso') income += line.amount;
-      else if (line.type === 'Gasto' || line.type === 'Pago') spending += line.amount;
-      else saved += line.amount;
+      else if (line.type === 'Gasto' || line.type === 'Pago' || line.toSpent) spending += line.amount;
+      else if (line.account >= 0) saved += line.amount; // lo que viene de fuera (p. ej. la empresa) no es ahorro tuyo
     }
 
-    const end = start.map((s, c) => round2(s + delta[c]!));
+    const spent = config.accounts.map((a) => a.spent === true);
+    for (let c = 0; c < n; c++) if (spent[c]) start[c] = 0;
+    const end = start.map((s, c) => (spent[c] ? 0 : round2(s + delta[c]!)));
     const real = config.accounts.map((_, c) => {
       const v = real_balances[realBalanceKey(key, c)];
       return typeof v === 'number' && Number.isFinite(v) ? round2(v) : null;
@@ -276,6 +301,7 @@ export function computeYear(data: AppData): YearResult {
       saved,
       leftover: round2(income - spending - saved),
       totalClosing: sum(closing),
+      debts: debtsAfter(data, month),
     });
 
     prevEnd = end;
@@ -297,6 +323,21 @@ export function computeYear(data: AppData): YearResult {
       startOfYear: sum(config.accounts.map((a) => a.initial)),
     },
   };
+}
+
+/** Lo que queda de cada deuda al acabar el mes `month` (pagos de ese año hasta ese mes). */
+function debtsAfter(data: AppData, month: number): MonthResult['debts'] {
+  const { config, overrides } = data;
+  return (config.debts ?? []).map((debt) => {
+    let paid = 0;
+    config.payments.forEach((p, index) => {
+      const d = parseDate(p.date);
+      if (!d || d.year !== config.year || d.month > month) return;
+      if (!p.concept.startsWith(debt.match)) return;
+      paid += lookup(overrides, paymentOverrideKey(monthKey(d.year, d.month), index)) ?? p.amount;
+    });
+    return { name: debt.name, account: debt.account, remaining: Math.max(0, round2(debt.amount - paid)), note: debt.note ?? '' };
+  });
 }
 
 /** Un pago pendiente, con el importe que contará (el cambiado, si lo hay). */

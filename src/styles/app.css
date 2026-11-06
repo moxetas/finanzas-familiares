@@ -321,7 +321,7 @@ textarea {
   padding: 0;
   max-width: 560px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
 }
 .tab {
   display: flex;
@@ -1368,4 +1368,65 @@ textarea {
     fill: CanvasText;
     background: CanvasText;
   }
+}
+
+/* ── 2026 / 2027, notas, domiciliaciones, sincronización ──────────────── */
+
+.year-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.year-tabs .seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 999px;
+  min-height: 36px;
+  cursor: pointer;
+}
+.year-tabs .seg-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+.plan-table .note-cell {
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-width: 14rem;
+  max-width: 24rem;
+  white-space: normal;
+  text-align: left;
+}
+.dom-table td,
+.dom-table th {
+  vertical-align: top;
+  text-align: left;
+}
+.dom-table td.n {
+  text-align: right;
+}
+.dom-table .line-name {
+  display: block;
+  min-width: 16rem;
+  white-space: normal;
+}
+.sync-status {
+  font-weight: 600;
+}
+.sync-status.is-ok {
+  color: var(--accent);
+}
+.sync-status.is-warn {
+  color: var(--warn, #b45309);
+}
+.code-box {
+  font-family: var(--font-num, monospace);
+  word-break: break-all;
+  user-select: all;
 }
