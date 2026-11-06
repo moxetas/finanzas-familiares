@@ -10,6 +10,7 @@ import { sanitizeData } from '../storage/sanitize';
 import { exampleData } from '../storage/example';
 import { todayISO } from '../calc/keys';
 import { t } from '../i18n';
+import { Sync } from '../storage/sync';
 
 export interface State {
   data: AppData;
@@ -29,11 +30,18 @@ export class Store {
   private queue: Promise<void> = Promise.resolve();
   private channel: BroadcastChannel | null = null;
   private askedPersistence = false;
+  readonly sync: Sync;
 
   private constructor(
     private local: LocalStore,
     public state: State,
   ) {
+    this.sync = new Sync({
+      getData: () => this.state.data,
+      replaceData: (d) => this.replaceData(d),
+      fallbackYear: () => new Date().getFullYear(),
+      accountName: () => t('account.defaultName'),
+    });
     if (typeof BroadcastChannel !== 'undefined') {
       this.channel = new BroadcastChannel(CHANNEL);
       this.channel.onmessage = () => void this.reload();
@@ -56,6 +64,7 @@ export class Store {
     const store = new Store(local, { data, meta, storage: local.kind, persisted: false });
     if (!stored) await store.persist();
     store.askPersistence();
+    store.sync.start();
     return store;
   }
 
@@ -78,6 +87,14 @@ export class Store {
     this.emit();
     void this.persist();
     this.askPersistence();
+    this.sync.localChanged();
+  }
+
+  /** Datos que llegan de la sincronización: se guardan y se muestran, sin reenviarlos. */
+  private replaceData(data: AppData): void {
+    this.state = { ...this.state, data };
+    this.emit();
+    void this.persist();
   }
 
   /**

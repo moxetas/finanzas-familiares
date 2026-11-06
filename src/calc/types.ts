@@ -13,6 +13,8 @@ export interface Account {
   name: string;
   /** Saldo al empezar el año (1 de enero). */
   initial: number;
+  /** Cuenta «de gasto diario»: lo que entra se gasta, no se guarda saldo. */
+  spent?: boolean;
 }
 
 export interface Item {
@@ -28,6 +30,12 @@ export interface Item {
   from_month: number;
   /** Último mes en que cuenta (12 = diciembre). */
   to_month: number;
+  /** Texto libre que se ve junto a la partida. */
+  note?: string;
+  /** Importe aproximado. */
+  estimated?: boolean;
+  /** Bloque donde se muestra (ver `Config.sections`). */
+  group?: string;
 }
 
 export interface Payment {
@@ -37,6 +45,17 @@ export interface Payment {
   amount: number;
   account: number;
   estimated: boolean;
+  note?: string;
+  group?: string;
+}
+
+/** Deuda que baja con pagos cuyo concepto empieza por `match`. */
+export interface Debt {
+  name: string;
+  account: number;
+  amount: number;
+  match: string;
+  note?: string;
 }
 
 export interface Config {
@@ -45,6 +64,9 @@ export interface Config {
   accounts: Account[];
   items: Item[];
   payments: Payment[];
+  /** Orden de los bloques de la tabla del mes (opcional). */
+  sections?: string[];
+  debts?: Debt[];
 }
 
 /** Importe cambiado solo para un mes: `"AAAA-MM_i<item>"` o `"AAAA-MM_p<pago>"`. */
@@ -66,8 +88,34 @@ export interface Entry {
   note: string;
 }
 
+/** Un mes ya cerrado, tal cual estaba en la hoja (p. ej. 2026). */
+export interface HistoryMonth {
+  title: string;
+  cols: string[];
+  rows: { l: string; v: (number | null)[] }[];
+  /** Total original de cada columna. */
+  tot: (number | null)[];
+}
+
+export interface DomRow {
+  n: number | null;
+  c: string;
+  t: string;
+  cost: number | null;
+  from: string;
+  to: string;
+}
+
+export interface Domiciliaciones {
+  accounts: { name: string; alias: string }[];
+  groups: { title: string; rows: DomRow[] }[];
+}
+
 export interface AppData {
   config: Config;
+  /** Meses de años anteriores, solo lectura salvo cifras cambiadas en `overrides`. */
+  history?: Record<string, HistoryMonth>;
+  domiciliaciones?: Domiciliaciones;
   overrides: Overrides;
   real_balances: RealBalances;
   entries: Entry[];

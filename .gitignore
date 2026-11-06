@@ -1,3 +1,11 @@
 node_modules/
 dist/
 *.local
+
+# Datos personales: nunca al repositorio
+*.json
+!package.json
+!package-lock.json
+!tsconfig*.json
+!public/*.webmanifest
+datos-privados/

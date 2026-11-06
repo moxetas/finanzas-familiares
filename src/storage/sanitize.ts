@@ -7,7 +7,7 @@
 
 import { parseDate } from '../calc/keys';
 import { round2 } from '../calc/money';
-import type { Account, AppData, Entry, EntryType, Item, ItemType, Payment } from '../calc/types';
+import type { Account, AppData, Debt, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
 
 const ITEM_TYPES: readonly ItemType[] = ['Ingreso', 'Gasto', 'Ahorro'];
 const ENTRY_TYPES: readonly EntryType[] = ['Ingreso', 'Gasto'];
@@ -53,7 +53,11 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
   const accounts: Account[] = arr(cfg['accounts'])
     .filter(isObj)
     .slice(0, MAX.accounts)
-    .map((a, i) => ({ name: cleanText(a['name']) || `${defaultAccountName} ${i + 1}`, initial: num(a['initial']) }));
+    .map((a, i): Account => ({
+      name: cleanText(a['name']) || `${defaultAccountName} ${i + 1}`,
+      initial: num(a['initial']),
+      ...(a['spent'] === true ? { spent: true } : {}),
+    }));
   if (accounts.length === 0) accounts.push({ name: defaultAccountName, initial: 0 });
   const n = accounts.length;
   const acc = (v: unknown): number => {
@@ -66,13 +70,15 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     .slice(0, MAX.items)
     .map((it) => {
       const type = ITEM_TYPES.includes(it['type'] as ItemType) ? (it['type'] as ItemType) : 'Gasto';
-      const account = acc(it['account']);
+      const rawAccount = int(it['account'], 0);
+      // Un ahorro puede venir de fuera de tus cuentas (-1), p. ej. lo que paga la empresa.
+      const account = type === 'Ahorro' && rawAccount === -1 ? -1 : acc(it['account']);
       const rawTo = int(it['to'], -1);
       const to = type === 'Ahorro' && rawTo >= 0 && rawTo < n && rawTo !== account ? rawTo : -1;
       let from = month(it['from_month'], 1);
       let until = month(it['to_month'], 12);
       if (from > until) [from, until] = [until, from];
-      return {
+      const item: Item = {
         name: cleanText(it['name']) || '—',
         type,
         amount: Math.abs(num(it['amount'])),
@@ -81,23 +87,36 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
         from_month: from,
         to_month: until,
       };
+      const note = cleanText(it['note'], LIMITS.note);
+      const group = cleanText(it['group'], 120);
+      if (note) item.note = note;
+      if (group) item.group = group;
+      if (it['estimated'] === true) item.estimated = true;
+      return item;
     });
 
   const payments: Payment[] = [];
   for (const p of arr(cfg['payments']).filter(isObj).slice(0, MAX.payments)) {
     const date = typeof p['date'] === 'string' ? p['date'].slice(0, 10) : '';
     if (!parseDate(date)) continue;
-    payments.push({
+    const pay: Payment = {
       date,
       concept: cleanText(p['concept']) || '—',
       amount: Math.abs(num(p['amount'])),
       account: acc(p['account']),
       estimated: p['estimated'] === true,
-    });
+    };
+    const note = cleanText(p['note'], LIMITS.note);
+    const group = cleanText(p['group'], 120);
+    if (note) pay.note = note;
+    if (group) pay.group = group;
+    payments.push(pay);
   }
 
-  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_[ip]\d+$/, (key) => {
-    const [, kind, idx] = /_([ip])(\d+)$/.exec(key)!;
+  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+)$/, (key) => {
+    const m = /_([ip])(\d+)$/.exec(key);
+    if (!m) return true; // cifra cambiada de un mes de `history`
+    const [, kind, idx] = m;
     const limit = kind === 'i' ? items.length : payments.length;
     return Number(idx) < limit;
   }, true);
@@ -127,12 +146,89 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     });
   }
 
-  return {
-    config: { year, example: cfg['example'] === true, accounts, items, payments },
+  const sections = arr(cfg['sections']).map((x) => cleanText(x, 120)).filter(Boolean).slice(0, 40);
+  const debts: Debt[] = arr(cfg['debts'])
+    .filter(isObj)
+    .slice(0, 20)
+    .map((d) => ({
+      name: cleanText(d['name']) || '—',
+      account: acc(d['account']),
+      amount: Math.abs(num(d['amount'])),
+      match: cleanText(d['match'], 60),
+      note: cleanText(d['note'], LIMITS.note),
+    }))
+    .filter((d) => d.match);
+
+  const out: AppData = {
+    config: {
+      year,
+      example: cfg['example'] === true,
+      accounts,
+      items,
+      payments,
+      ...(sections.length ? { sections } : {}),
+      ...(debts.length ? { debts } : {}),
+    },
     overrides,
     real_balances,
     entries,
   };
+  const history = sanitizeHistory(root['history']);
+  if (history) out.history = history;
+  const dom = sanitizeDom(root['domiciliaciones']);
+  if (dom) out.domiciliaciones = dom;
+  return out;
+}
+
+function nullableNum(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? round2(v) : null;
+}
+
+function sanitizeHistory(raw: unknown): Record<string, HistoryMonth> | undefined {
+  if (!isObj(raw)) return undefined;
+  const out: Record<string, HistoryMonth> = {};
+  for (const [ym, m] of Object.entries(raw).slice(0, 36)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(ym) || !isObj(m)) continue;
+    const cols = arr(m['cols']).map((c) => cleanText(c)).slice(0, 12);
+    if (cols.length === 0) continue;
+    const fit = (v: unknown) => cols.map((_, i) => nullableNum(arr(v)[i]));
+    out[ym] = {
+      title: cleanText(m['title'], 80) || ym,
+      cols,
+      rows: arr(m['rows'])
+        .filter(isObj)
+        .slice(0, 120)
+        .map((r) => ({ l: cleanText(r['l'], 120) || '—', v: fit(r['v']) })),
+      tot: fit(m['tot']),
+    };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function sanitizeDom(raw: unknown): Domiciliaciones | undefined {
+  if (!isObj(raw)) return undefined;
+  const accounts = arr(raw['accounts'])
+    .filter(isObj)
+    .slice(0, 30)
+    .map((a) => ({ name: cleanText(a['name'], 120), alias: cleanText(a['alias'], 60) }));
+  const groups = arr(raw['groups'])
+    .filter(isObj)
+    .slice(0, 20)
+    .map((g) => ({
+      title: cleanText(g['title'], 120),
+      rows: arr(g['rows'])
+        .filter(isObj)
+        .slice(0, 100)
+        .map((r) => ({
+          n: nullableNum(r['n']),
+          c: cleanText(r['c'], 300),
+          t: cleanText(r['t'], 60),
+          cost: nullableNum(r['cost']),
+          from: cleanText(r['from'], 60),
+          to: cleanText(r['to'], 60),
+        })),
+    }));
+  return groups.length ? { accounts, groups } : undefined;
 }
 
 function numericDict(
@@ -148,7 +244,7 @@ function numericDict(
     if (count >= MAX.keys) break;
     if (!pattern.test(key) || !valid(key)) continue;
     if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-    out[key] = positive ? Math.abs(round2(value)) : round2(value);
+    out[key] = positive && !/_r\d+_c\d+$/.test(key) ? Math.abs(round2(value)) : round2(value);
     count++;
   }
   return out;

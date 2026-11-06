@@ -13,6 +13,7 @@ import { editAccount, editItem, editPayment } from '../forms';
 import { icon } from '../icons';
 import { canPromptInstall, isIOS, isStandalone, promptInstall } from '../install';
 import { loadExample, startBlank } from '../notices';
+import { syncCard } from '../sync-card';
 import { applyTheme } from '../theme';
 import { toast } from '../toast';
 
@@ -225,6 +226,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     accountsCard,
     itemsCard,
     paymentsCard,
+    syncCard(ctx),
     backupCard,
     shareCard,
     installCard,

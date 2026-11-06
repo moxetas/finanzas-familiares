@@ -1,17 +1,30 @@
 /** Un mes: cuadrícula de partidas por cuenta, saldos reales y apuntes. */
 
 import { computeYear, entriesOfMonth, type Line, type LineType, type MonthResult } from '../../calc/engine';
-import { monthKey, todayISO } from '../../calc/keys';
+import { historyCellKey, monthKey, todayISO } from '../../calc/keys';
 import { parseAmount, sum } from '../../calc/money';
 import { setRealBalance } from '../../calc/mutations';
 import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, type MessageKey } from '../../i18n';
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
 import { h, uid } from '../dom';
-import { editEntry, editOverride } from '../forms';
+import { editEntry, editHistoryCell, editOverride } from '../forms';
 import { icon } from '../icons';
 
-/** Mes que se abre por defecto: el actual si es el año planificado; si no, enero. */
+/** Meses de años anteriores guardados en `history`, ordenados: `["2026-02", …]`. */
+export function historyKeys(ctx: Ctx): string[] {
+  return Object.keys(ctx.data.history ?? {}).sort();
+}
+
+/** Mes que se abre por defecto: el de hoy si existe (en el año planificado o en el historial); si no, enero. */
+export function defaultMonthKey(ctx: Ctx): string {
+  const today = todayISO();
+  const ym = today.slice(0, 7);
+  const { year } = ctx.data.config;
+  if (today.startsWith(`${year}-`) || ctx.data.history?.[ym]) return ym;
+  return monthKey(year, 1);
+}
+
 export function defaultMonth(year: number): number {
   const today = todayISO();
   return today.startsWith(`${year}-`) ? Number(today.slice(5, 7)) : 1;
@@ -19,14 +32,16 @@ export function defaultMonth(year: number): number {
 
 export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
   const { config } = ctx.data;
-  let month = defaultMonth(config.year);
-  if (param && /^\d{4}-\d{2}$/.test(param) && Number(param.slice(0, 4)) === config.year) {
-    const m = Number(param.slice(5, 7));
-    if (m >= 1 && m <= 12) month = m;
+  let ym = defaultMonthKey(ctx);
+  if (param && /^\d{4}-(0[1-9]|1[0-2])$/.test(param)) {
+    const y = Number(param.slice(0, 4));
+    if (y === config.year || ctx.data.history?.[param]) ym = param;
   }
+  if (Number(ym.slice(0, 4)) !== config.year) return historyView(ctx, ym);
+
+  const month = Number(ym.slice(5, 7));
   const year = computeYear(ctx.data);
   const result = year.months[month - 1]!;
-  const ym = monthKey(config.year, month);
 
   return h(
     'div',
@@ -46,24 +61,132 @@ export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
   );
 }
 
+/** Un mes de un año anterior, tal como estaba en la hoja. Las cifras se pueden cambiar. */
+function historyView(ctx: Ctx, ym: string): HTMLElement {
+  const m = ctx.data.history![ym]!;
+  const { overrides, real_balances } = ctx.data;
+  const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => overrides[historyCellKey(ym, ri, ci)] ?? orig));
+  const tot = m.tot.map((base, ci) => {
+    let v = base ?? 0;
+    m.rows.forEach((r, ri) => {
+      const o = overrides[historyCellKey(ym, ri, ci)];
+      if (o !== undefined) v += o - (r.v[ci] ?? 0);
+    });
+    return Math.round(v * 100) / 100;
+  });
+  const cell = (value: number | null, ri: number, ci: number, label: string) => {
+    const changed = overrides[historyCellKey(ym, ri, ci)] !== undefined;
+    return h(
+      'td',
+      { class: 'n' },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: `cell-btn${(value ?? 0) < 0 ? ' neg' : ''}${changed ? ' is-changed' : ''}`,
+          'aria-label': `${t('action.edit')} ${label}`,
+          'data-focus-key': `hcell-${ri}-${ci}`,
+          onclick: () => editHistoryCell(ctx, ym, ri, ci, label),
+        },
+        value === null || Math.abs(value) < 0.005 ? '–' : fmtNumber(value, { sign: true }),
+      ),
+    );
+  };
+  const table = h(
+    'table',
+    { class: 'grid-table plan-table' },
+    h('thead', null, h('tr', null, h('th', { scope: 'col' }, t('months.col.item')), m.cols.map((c) => h('th', { scope: 'col', class: 'n' }, c)))),
+    h(
+      'tbody',
+      null,
+      m.rows.map((r, ri) => h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`)))),
+      h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), tot.map((v) => h('td', { class: 'n strong' }, money(v, { plain: true })))),
+    ),
+  );
+  const fake: MonthResult = {
+    month: Number(ym.slice(5, 7)),
+    key: ym,
+    lines: [],
+    start: [],
+    startSource: [],
+    delta: [],
+    end: ctx.data.config.accounts.map(() => 0),
+    real: ctx.data.config.accounts.map((_, c) => real_balances[`${ym}_c${c}`] ?? null),
+    diff: ctx.data.config.accounts.map(() => null),
+    closing: [],
+    income: 0,
+    spending: 0,
+    saved: 0,
+    leftover: 0,
+    totalClosing: 0,
+    debts: [],
+  };
+  return h(
+    'div',
+    { class: 'view view-months' },
+    monthNav(ctx, Number(ym.slice(0, 4)), Number(ym.slice(5, 7))),
+    card(
+      { title: m.title, sub: t('months.history.sub'), id: 'plan' },
+      h('div', { class: 'table-wrap', 'data-scroll-key': 'plan' }, table),
+      h('p', { class: 'field-hint' }, t('months.amountsIn')),
+    ),
+    realCard(ctx, fake, ym, { planned: false }),
+    entriesCard(ctx, ym),
+  );
+}
+
 function monthNav(ctx: Ctx, year: number, month: number): HTMLElement {
-  const go = (m: number) => ctx.go(`#/meses/${monthKey(year, m)}`);
+  const go = (ym: string) => ctx.go(`#/meses/${ym}`);
   const selectId = uid('month');
+  const hist = historyKeys(ctx);
+  const inHistory = year !== ctx.data.config.year;
+  // Meses disponibles en el año que se está viendo.
+  const available = inHistory ? hist.filter((k) => k.startsWith(`${year}-`)).map((k) => Number(k.slice(5, 7))) : Array.from({ length: 12 }, (_, i) => i + 1);
+  const pos = available.indexOf(month);
+  const prev = pos > 0 ? available[pos - 1]! : null;
+  const next = pos >= 0 && pos < available.length - 1 ? available[pos + 1]! : null;
+  const years = [...new Set([...hist.map((k) => Number(k.slice(0, 4))), ctx.data.config.year])].sort();
+  const yearSwitch =
+    years.length > 1
+      ? h(
+          'div',
+          { class: 'segmented year-tabs', role: 'group', 'aria-label': t('months.year') },
+          years.map((y) =>
+            h(
+              'button',
+              {
+                type: 'button',
+                class: 'seg-btn',
+                'aria-pressed': String(y === year),
+                'data-focus-key': `year-${y}`,
+                onclick: () => {
+                  if (y === year) return;
+                  const prefer = hist.filter((k) => k.startsWith(`${y}-`));
+                  const same = monthKey(y, month);
+                  go(y === ctx.data.config.year ? same : prefer.includes(same) ? same : (prefer[prefer.length - 1] ?? same));
+                },
+              },
+              String(y),
+            ),
+          ),
+        )
+      : null;
   return h(
     'div',
     { class: 'page-head month-nav' },
     h('h1', { class: 'page-title', tabindex: '-1' }, fmtYearMonth(monthKey(year, month))),
+    yearSwitch,
     h(
       'div',
       { class: 'month-switch' },
-      button(t('months.prev'), { icon: 'prev', iconOnly: true, kind: 'secondary', focusKey: 'month-prev', onClick: () => go(month - 1), className: month === 1 ? 'is-hidden' : '' }),
+      button(t('months.prev'), { icon: 'prev', iconOnly: true, kind: 'secondary', focusKey: 'month-prev', onClick: () => prev && go(monthKey(year, prev)), className: prev === null ? 'is-hidden' : '' }),
       h('label', { for: selectId, class: 'visually-hidden' }, t('months.pick')),
       h(
         'select',
-        { id: selectId, class: 'month-select', 'data-focus-key': 'month-select', onchange: (ev: Event) => go(Number((ev.target as HTMLSelectElement).value)) },
-        Array.from({ length: 12 }, (_, i) => h('option', { value: i + 1, selected: i + 1 === month }, monthName(i + 1))),
+        { id: selectId, class: 'month-select', 'data-focus-key': 'month-select', onchange: (ev: Event) => go(monthKey(year, Number((ev.target as HTMLSelectElement).value))) },
+        available.map((m) => h('option', { value: m, selected: m === month }, monthName(m))),
       ),
-      button(t('months.next'), { icon: 'next', iconOnly: true, kind: 'secondary', focusKey: 'month-next', onClick: () => go(month + 1), className: month === 12 ? 'is-hidden' : '' }),
+      button(t('months.next'), { icon: 'next', iconOnly: true, kind: 'secondary', focusKey: 'month-next', onClick: () => next && go(monthKey(year, next)), className: next === null ? 'is-hidden' : '' }),
     ),
   );
 }
@@ -77,6 +200,7 @@ const GROUPS: { type: LineType | 'entry'; label: MessageKey }[] = [
 ];
 
 function groupOf(line: Line): LineType | 'entry' {
+  if (line.toSpent) return 'Gasto';
   return line.kind === 'entry' ? 'entry' : line.type;
 }
 
@@ -84,6 +208,9 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   const accounts = ctx.data.config.accounts;
   const several = accounts.length > 1;
   const cols = accounts.length + (several ? 1 : 0);
+  const hasNotes = m.lines.some((l) => l.note !== '' && l.kind !== 'entry');
+  const span = 1 + cols + (hasNotes ? 1 : 0);
+  const noteCell = (text = '') => (hasNotes ? h('td', { class: 'note-cell' }, text) : null);
 
   const numCell = (value: number, opts: { strong?: boolean; muted?: boolean } = {}) =>
     h('td', { class: `n${opts.strong ? ' strong' : ''}${opts.muted ? ' muted' : ''}` }, money(value, { plain: true }));
@@ -96,32 +223,63 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
       'tr',
       { class: 'row-sum row-start' },
       h('th', { scope: 'row' }, t('months.row.start')),
-      accounts.map((_, c) =>
+      accounts.map((a, c) =>
         h(
           'td',
           { class: 'n' },
-          money(m.start[c] ?? 0, { plain: true }),
-          m.startSource[c] === 'real' ? h('span', { class: 'mark-real', title: t('months.row.start.real', { month: monthName(month - 1) }) }, ` · ${t('chip.real')}`) : null,
+          a.spent ? null : money(m.start[c] ?? 0, { plain: true }),
+          !a.spent && m.startSource[c] === 'real' ? h('span', { class: 'mark-real', title: t('months.row.start.real', { month: monthName(month === 1 ? 12 : month - 1) }) }, ` · ${t('chip.real')}`) : null,
         ),
       ),
       several ? numCell(sum(m.start)) : null,
+      noteCell(),
     ),
   );
 
+  // Deudas que bajan con los pagos del año (p. ej. una tarjeta)
+  for (const debt of m.debts) {
+    rows.push(
+      h(
+        'tr',
+        { class: 'row-sum' },
+        h('th', { scope: 'row' }, debt.name),
+        accounts.map((_, c) => (c === debt.account ? h('td', { class: `n${debt.remaining > 0 ? ' neg' : ''}` }, debt.remaining > 0 ? `−${fmtNumber(debt.remaining)}` : '–') : h('td', { class: 'n' }))),
+        several ? h('td', { class: 'n' }) : null,
+        noteCell(debt.note),
+      ),
+    );
+  }
+
+  const sectionRows = (label: string, lines: Line[]) => {
+    if (lines.length === 0) return;
+    rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, label)));
+    for (const line of lines) rows.push(lineRow(ctx, line, month, several, hasNotes));
+  };
+
+  const sections = ctx.data.config.sections ?? [];
+  for (const name of sections) sectionRows(name, m.lines.filter((l) => l.group === name));
+  const rest = m.lines.filter((l) => !sections.includes(l.group));
   for (const group of GROUPS) {
-    const lines = m.lines.filter((l) => groupOf(l) === group.type);
-    if (lines.length === 0) continue;
-    rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: 1 + cols }, t(group.label))));
-    for (const line of lines) rows.push(lineRow(ctx, line, month, several));
+    sectionRows(
+      t(group.label),
+      rest.filter((l) => groupOf(l) === group.type),
+    );
   }
 
   if (m.lines.length === 0) {
-    rows.push(h('tr', null, h('td', { colspan: 1 + cols, class: 'empty-cell' }, t('months.empty'))));
+    rows.push(h('tr', null, h('td', { colspan: span, class: 'empty-cell' }, t('months.empty'))));
   }
 
   rows.push(
-    h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), m.delta.map((v) => numCell(v)), several ? numCell(sum(m.delta)) : null),
-    h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.end')), m.end.map((v) => numCell(v, { strong: true })), several ? numCell(sum(m.end), { strong: true }) : null),
+    h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), m.delta.map((v) => numCell(v)), several ? numCell(sum(m.delta)) : null, noteCell()),
+    h(
+      'tr',
+      { class: 'row-sum row-end' },
+      h('th', { scope: 'row' }, t('months.row.end')),
+      m.end.map((v, c) => (accounts[c]?.spent ? h('td', { class: 'n muted' }, t('months.spent')) : numCell(v, { strong: true }))),
+      several ? numCell(sum(m.end), { strong: true }) : null,
+      noteCell(),
+    ),
   );
 
   return card(
@@ -141,6 +299,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
             h('th', { scope: 'col' }, t('months.col.item')),
             accounts.map((a) => h('th', { scope: 'col', class: 'n' }, a.name)),
             several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
+            hasNotes ? h('th', { scope: 'col' }, t('months.col.note')) : null,
           ),
         ),
         h('tbody', null, rows),
@@ -150,7 +309,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   );
 }
 
-function lineRow(ctx: Ctx, line: Line, month: number, several: boolean): HTMLElement {
+function lineRow(ctx: Ctx, line: Line, month: number, several: boolean, hasNotes: boolean): HTMLElement {
   const accounts = ctx.data.config.accounts;
   const marks = [
     line.estimated ? chip(t('chip.estimated'), 'estimated') : null,
@@ -184,10 +343,12 @@ function lineRow(ctx: Ctx, line: Line, month: number, several: boolean): HTMLEle
       );
     }),
     several ? h('td', { class: 'n muted' }, money(sum(line.deltas), { plain: true, tone: 'none' })) : null,
+    hasNotes ? h('td', { class: 'note-cell' }, line.note) : null,
   );
 }
 
-function realCard(ctx: Ctx, m: MonthResult, ym: string): HTMLElement {
+function realCard(ctx: Ctx, m: MonthResult, ym: string, opts: { planned?: boolean } = {}): HTMLElement {
+  const planned = opts.planned !== false;
   const accounts = ctx.data.config.accounts;
   const rows = accounts.map((a, c) => {
     const id = uid('real');
@@ -231,14 +392,16 @@ function realCard(ctx: Ctx, m: MonthResult, ym: string): HTMLElement {
       'div',
       { class: 'real-row' },
       h('label', { for: id, class: 'real-name' }, a.name),
-      h('p', { class: 'real-planned', id: `${id}-planned` }, h('span', { class: 'muted' }, `${t('real.planned')} `), money(m.end[c] ?? 0)),
+      planned ? h('p', { class: 'real-planned', id: `${id}-planned` }, h('span', { class: 'muted' }, `${t('real.planned')} `), money(m.end[c] ?? 0)) : h('p', { class: 'real-planned', id: `${id}-planned`, hidden: true }),
       h('div', { class: 'amount-wrap real-input' }, input, h('span', { class: 'amount-unit', 'aria-hidden': 'true' }, '€')),
-      h(
-        'p',
-        { class: 'real-diff' },
-        h('span', { class: 'muted' }, `${t('real.diff')} `),
-        diff === null || diff === undefined ? h('span', { class: 'muted' }, t('real.none')) : money(diff, { sign: true }),
-      ),
+      planned
+        ? h(
+            'p',
+            { class: 'real-diff' },
+            h('span', { class: 'muted' }, `${t('real.diff')} `),
+            diff === null || diff === undefined ? h('span', { class: 'muted' }, t('real.none')) : money(diff, { sign: true }),
+          )
+        : null,
       error,
     );
   });

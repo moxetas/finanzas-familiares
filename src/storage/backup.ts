@@ -32,6 +32,8 @@ export function toBackup(data: AppData, now: Date = new Date()): BackupFile {
     version: BACKUP_VERSION,
     exported_at: now.toISOString(),
     config: data.config,
+    ...(data.history ? { history: data.history } : {}),
+    ...(data.domiciliaciones ? { domiciliaciones: data.domiciliaciones } : {}),
     overrides: data.overrides,
     real_balances: data.real_balances,
     entries: data.entries,
