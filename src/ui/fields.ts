@@ -45,13 +45,20 @@ function frame(id: string, base: FieldBase, control: HTMLElement, target: HTMLEl
   return { el, setError };
 }
 
-export function textField(opts: FieldBase & { value?: string; maxlength?: number; placeholder?: string; multiline?: boolean }): Field<string> {
+export function textField(opts: FieldBase & { value?: string; maxlength?: number; placeholder?: string; multiline?: boolean; suggestions?: string[] }): Field<string> {
   const id = uid();
   const input = opts.multiline
     ? h('textarea', { id, rows: 2, maxlength: opts.maxlength ?? 300 })
     : h('input', { id, type: 'text', autocomplete: 'off', maxlength: opts.maxlength ?? 60, placeholder: opts.placeholder, enterkeyhint: 'next' });
   input.value = opts.value ?? '';
   const { el, setError } = frame(id, opts, input);
+  // Sugerencias mientras se escribe (se puede poner cualquier otro texto).
+  const suggestions = Array.from(new Set((opts.suggestions ?? []).filter(Boolean)));
+  if (suggestions.length && !opts.multiline) {
+    const listId = `${id}-list`;
+    input.setAttribute('list', listId);
+    el.append(h('datalist', { id: listId }, suggestions.map((s) => h('option', { value: s }))));
+  }
   input.addEventListener('input', () => setError(null));
   return {
     el,

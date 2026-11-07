@@ -1484,3 +1484,11 @@ textarea {
   word-break: break-all;
   user-select: all;
 }
+
+.page-actions {
+  margin-top: 0;
+}
+.view-dom .row-date {
+  width: 28px;
+  color: var(--muted);
+}

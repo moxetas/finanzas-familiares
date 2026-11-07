@@ -5,7 +5,7 @@
 
 import { historyCellKey, itemOverrideKey, parseIndexedKey, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2 } from './money';
-import type { Account, AppData, Config, Entry, Item, Payment } from './types';
+import type { Account, AppData, Config, DomRow, Domiciliaciones, Entry, Item, Payment } from './types';
 
 /** Copia superficial con arrays y objetos de primer nivel nuevos. */
 function cloneData(data: AppData): AppData {
@@ -254,4 +254,74 @@ export function blankData(year: number, accountName: string): AppData {
     payments: [],
   };
   return { config, overrides: {}, real_balances: {}, entries: [] };
+}
+
+// ── Domiciliaciones ─────────────────────────────────────────────────────────
+
+/** Una domiciliación tal como se escribe en el formulario. */
+export interface DomRowInput {
+  /** Bloque donde va (p. ej. «Seguros»). Si no existe, se crea. */
+  group: string;
+  c: string;
+  t: string;
+  cost: number | null;
+  from: string;
+  to: string;
+}
+
+function cloneDom(data: AppData): Domiciliaciones {
+  const dom = data.domiciliaciones;
+  return {
+    accounts: (dom?.accounts ?? []).map((a) => ({ ...a })),
+    groups: (dom?.groups ?? []).map((g) => ({ title: g.title, rows: g.rows.map((r) => ({ ...r })) })),
+  };
+}
+
+const sameTitle = (a: string, b: string) => a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+
+/**
+ * Añade (`at` = null) o cambia una domiciliación. Si cambia de bloque, pasa al
+ * final del nuevo; los bloques que se quedan vacíos desaparecen.
+ */
+export function saveDomRow(data: AppData, at: { g: number; r: number } | null, input: DomRowInput): AppData {
+  const dom = cloneDom(data);
+  const title = input.group.trim() || 'Domiciliaciones';
+  const row: DomRow = {
+    n: null,
+    c: input.c,
+    t: input.t,
+    cost: input.cost === null ? null : round2(input.cost),
+    from: input.from,
+    to: input.to,
+  };
+  if (at) {
+    const prev = dom.groups[at.g]?.rows[at.r];
+    if (!prev) return data;
+    row.n = prev.n;
+    if (sameTitle(dom.groups[at.g]!.title, title)) {
+      dom.groups[at.g]!.rows[at.r] = row;
+      return { ...data, domiciliaciones: dom };
+    }
+    dom.groups[at.g]!.rows.splice(at.r, 1);
+  }
+  let group = dom.groups.find((g) => sameTitle(g.title, title));
+  if (!group) {
+    group = { title, rows: [] };
+    dom.groups.push(group);
+  }
+  group.rows.push(row);
+  dom.groups = dom.groups.filter((g) => g.rows.length > 0);
+  return { ...data, domiciliaciones: dom };
+}
+
+export function removeDomRow(data: AppData, g: number, r: number): AppData {
+  if (!data.domiciliaciones?.groups[g]?.rows[r]) return data;
+  const dom = cloneDom(data);
+  dom.groups[g]!.rows.splice(r, 1);
+  dom.groups = dom.groups.filter((x) => x.rows.length > 0);
+  if (dom.groups.length === 0) {
+    const { domiciliaciones: _omit, ...rest } = data;
+    return rest;
+  }
+  return { ...data, domiciliaciones: dom };
 }

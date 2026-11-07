@@ -3,6 +3,8 @@
 import type { Line } from '../calc/engine';
 import { monthKey, daysInMonth, todayISO } from '../calc/keys';
 import {
+  removeDomRow,
+  saveDomRow,
   accountUsage,
   addAccount,
   addEntry,
@@ -365,4 +367,58 @@ export function editHistoryCell(ctx: Ctx, ym: string, row: number, col: number, 
     },
   );
   openDialog({ title: label, content: [amount.el], actions });
+}
+
+// ── Domiciliaciones ─────────────────────────────────────────────────────────
+
+/** Nombres de cuenta para sugerir: las de la app y las de la lista de domiciliaciones. */
+function domAccountNames(ctx: Ctx): string[] {
+  const dom = ctx.data.domiciliaciones;
+  return [
+    ...ctx.data.config.accounts.map((a) => a.name),
+    ...(dom?.accounts ?? []).map((a) => a.alias),
+    ...(dom?.groups ?? []).flatMap((g) => g.rows.flatMap((r) => [r.from, r.to])),
+  ];
+}
+
+/** Añade (`at` = null) o cambia una domiciliación. `group` propone el bloque al añadir. */
+export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?: string): void {
+  const dom = ctx.data.domiciliaciones;
+  const current = at ? dom?.groups[at.g]?.rows[at.r] : undefined;
+  const groupTitle = at ? (dom?.groups[at.g]?.title ?? '') : (group ?? dom?.groups[0]?.title ?? t('dom.defaultGroup'));
+  const accounts = domAccountNames(ctx);
+
+  const concept = textField({ label: t('dom.field.concept'), value: current?.c ?? '', maxlength: 300 });
+  const cost = amountField({ label: t('dom.field.cost'), value: current?.cost ?? null, optional: true });
+  const from = textField({ label: t('dom.field.from'), value: current?.from ?? '', optional: true, suggestions: accounts, hint: t('settings.accounts.noNumbers') });
+  const to = textField({ label: t('dom.field.to'), value: current?.to ?? '', optional: true, suggestions: accounts });
+  const groupField = textField({ label: t('dom.field.group'), value: groupTitle, maxlength: 120, suggestions: (dom?.groups ?? []).map((g) => g.title), hint: t('dom.field.group.hint') });
+  const ticker = textField({ label: t('dom.field.ticker'), value: current?.t ?? '', optional: true });
+
+  const actions: DialogAction[] = [];
+  if (at && current) {
+    actions.push(
+      deleteAction(async () => {
+        const yes = await confirmDialog({ text: t('dom.delete', { name: current.c }), yes: t('action.delete'), danger: true });
+        if (yes) ctx.commit(removeDomRow(ctx.data, at.g, at.r), t('dom.deleted'));
+      }),
+    );
+  }
+  actions.push(
+    { label: t('action.cancel') },
+    {
+      label: t('action.save'),
+      submit: true,
+      onClick: () => {
+        const v = readAll({ concept, cost, from, to, groupField, ticker });
+        if (!v) return false;
+        ctx.commit(saveDomRow(ctx.data, at, { group: v.groupField, c: v.concept, t: v.ticker, cost: v.cost, from: v.from, to: v.to }));
+      },
+    },
+  );
+  openDialog({
+    title: at ? t('dom.edit') : t('dom.new'),
+    content: [concept.el, cost.el, from.el, to.el, groupField.el, ticker.el],
+    actions,
+  });
 }

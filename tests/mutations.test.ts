@@ -6,6 +6,8 @@ import {
   blankData,
   computeYear,
   removeAccount,
+  removeDomRow,
+  saveDomRow,
   removeEntry,
   removeItem,
   removePayment,
@@ -162,5 +164,28 @@ describe('editar', () => {
     expect(d.entries[0]!.amount).toBe(15);
     d = removeEntry(d, 'x');
     expect(d.entries).toHaveLength(0);
+  });
+});
+
+describe('domiciliaciones', () => {
+  const base = () => blankData(2027, 'A');
+  const row = (over: Partial<import('../src/calc').DomRowInput> = {}) => ({ group: 'Seguros', c: 'Coche', t: '', cost: 40, from: 'Banco', to: '', ...over });
+
+  it('crea el bloque al añadir la primera y lo quita al borrar la última', () => {
+    let d = saveDomRow(base(), null, row());
+    d = saveDomRow(d, null, row({ group: 'seguros ', c: 'Hogar', cost: null }));
+    expect(d.domiciliaciones!.groups).toHaveLength(1);
+    expect(d.domiciliaciones!.groups[0]!.rows.map((r) => r.c)).toEqual(['Coche', 'Hogar']);
+    d = removeDomRow(d, 0, 0);
+    d = removeDomRow(d, 0, 0);
+    expect(d.domiciliaciones).toBeUndefined();
+  });
+
+  it('al cambiar de bloque la mueve y conserva su número', () => {
+    let d = saveDomRow(base(), null, row());
+    d = { ...d, domiciliaciones: { ...d.domiciliaciones!, groups: [{ ...d.domiciliaciones!.groups[0]!, rows: [{ ...d.domiciliaciones!.groups[0]!.rows[0]!, n: 7 }] }] } };
+    d = saveDomRow(d, { g: 0, r: 0 }, row({ group: 'Luz y agua', c: 'Luz' }));
+    expect(d.domiciliaciones!.groups.map((g) => g.title)).toEqual(['Luz y agua']);
+    expect(d.domiciliaciones!.groups[0]!.rows[0]).toMatchObject({ c: 'Luz', n: 7 });
   });
 });
