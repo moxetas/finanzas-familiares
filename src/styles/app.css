@@ -869,11 +869,11 @@ textarea {
 }
 .real-row {
   display: grid;
-  grid-template-columns: 1fr minmax(120px, 160px);
+  grid-template-columns: 1fr 1fr;
   grid-template-areas:
-    'name input'
-    'planned input'
-    'diff diff'
+    'name name'
+    'planned diff'
+    'input input'
     'err err';
   gap: 2px 12px;
   align-items: center;
@@ -1514,4 +1514,62 @@ textarea {
 .row-transfer th,
 .row-transfer td {
   border-top: 1px solid var(--line-strong);
+}
+
+/* Botones de signo junto a los importes (el teclado del iPhone no tiene «−») */
+.amount-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.amount-row .amount-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.sign-btns {
+  display: flex;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  padding: 2px;
+  gap: 2px;
+  flex: none;
+}
+.sign-btn {
+  width: 40px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sign-btn[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.sign-btn:first-child[aria-pressed='true'] {
+  color: var(--neg);
+}
+
+.real-row .real-input {
+  margin-top: 6px;
+}
+@media (min-width: 560px) {
+  .real-row {
+    grid-template-columns: 1fr minmax(220px, 260px);
+    grid-template-areas:
+      'name input'
+      'planned input'
+      'diff diff'
+      'err err';
+  }
+  .real-row .real-input {
+    margin-top: 0;
+  }
 }

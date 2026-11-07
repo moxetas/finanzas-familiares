@@ -75,6 +75,35 @@ export function textField(opts: FieldBase & { value?: string; maxlength?: number
   };
 }
 
+/**
+ * Botones − y + junto a un importe. El teclado numérico del iPhone no tiene
+ * signo menos: con estos botones se pone o se quita sin salir del campo.
+ */
+export function signButtons(input: HTMLInputElement, onChange?: () => void): HTMLElement {
+  const isNeg = () => /^\s*[-−]/.test(input.value);
+  const minus = h('button', { type: 'button', class: 'sign-btn', 'aria-label': t('field.sign.minus'), title: t('field.sign.minus') }, '−');
+  const plus = h('button', { type: 'button', class: 'sign-btn', 'aria-label': t('field.sign.plus'), title: t('field.sign.plus') }, '+');
+  const sync = () => {
+    minus.setAttribute('aria-pressed', String(isNeg()));
+    plus.setAttribute('aria-pressed', String(!isNeg()));
+  };
+  const set = (neg: boolean) => {
+    const digits = input.value.replace(/^\s*[-−+]\s*/, '');
+    input.value = neg ? `-${digits}` : digits;
+    sync();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    onChange?.();
+  };
+  for (const [btn, neg] of [[minus, true], [plus, false]] as const) {
+    // Que el campo no pierda el foco (y el teclado no se cierre) al tocar el botón.
+    btn.addEventListener('pointerdown', (ev) => ev.preventDefault());
+    btn.addEventListener('click', () => set(neg));
+  }
+  input.addEventListener('input', sync);
+  sync();
+  return h('div', { class: 'sign-btns', role: 'group', 'aria-label': t('field.sign') }, minus, plus);
+}
+
 /** Importe en texto libre: admite «12,50», «1.234,56», «-20»… */
 export function amountField(opts: FieldBase & { value?: number | null; allowNegative?: boolean; placeholder?: string }): Field<number | null> & { input: HTMLInputElement } {
   const id = uid();
@@ -88,7 +117,8 @@ export function amountField(opts: FieldBase & { value?: number | null; allowNega
     enterkeyhint: 'done',
   });
   input.value = opts.value === null || opts.value === undefined ? '' : fmtInput(opts.value);
-  const wrap = h('div', { class: 'amount-wrap' }, input, h('span', { class: 'amount-unit', 'aria-hidden': 'true' }, '€'));
+  const box = h('div', { class: 'amount-wrap' }, input, h('span', { class: 'amount-unit', 'aria-hidden': 'true' }, '€'));
+  const wrap = opts.allowNegative ? h('div', { class: 'amount-row' }, signButtons(input), box) : box;
   const { el, setError } = frame(id, opts, wrap, input);
   input.addEventListener('input', () => setError(null));
   return {

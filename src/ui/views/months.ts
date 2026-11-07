@@ -10,6 +10,7 @@ import type { Ctx } from '../context';
 import { h, uid } from '../dom';
 import { editEntry, editHistoryCell, editOverride } from '../forms';
 import { icon } from '../icons';
+import { signButtons } from '../fields';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
 import { freeRows, transferRow } from '../extra-rows';
 
@@ -424,7 +425,7 @@ function realCard(ctx: Ctx, m: MonthResult, ym: string, opts: { planned?: boolea
       { class: 'real-row' },
       h('label', { for: id, class: 'real-name' }, a.name),
       planned ? h('p', { class: 'real-planned', id: `${id}-planned` }, h('span', { class: 'muted' }, `${t('real.planned')} `), money(m.end[c] ?? 0)) : h('p', { class: 'real-planned', id: `${id}-planned`, hidden: true }),
-      h('div', { class: 'amount-wrap real-input' }, input, h('span', { class: 'amount-unit', 'aria-hidden': 'true' }, '€')),
+      h('div', { class: 'amount-row real-input' }, signButtons(input, () => { if (document.activeElement !== input) save(); }), h('div', { class: 'amount-wrap' }, input, h('span', { class: 'amount-unit', 'aria-hidden': 'true' }, '€'))),
       planned
         ? h(
             'p',
