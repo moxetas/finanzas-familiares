@@ -16,6 +16,7 @@ import { loadExample, startBlank } from '../notices';
 import { syncCard } from '../sync-card';
 import { applyTheme } from '../theme';
 import { toast } from '../toast';
+import { selectField } from '../fields';
 
 const TYPE_TONE: Record<Item['type'], ChipTone> = { Ingreso: 'income', Gasto: 'expense', Ahorro: 'saving' };
 
@@ -136,6 +137,27 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
   );
 
   // ── Copia de seguridad ──
+  // ── Filas libres de cada mes ──
+  const names = Array.from(
+    new Set([
+      ...config.items.map((i) => i.name),
+      ...Object.values(ctx.data.history ?? {}).flatMap((hm) => hm.rows.map((r) => r.l)),
+    ]),
+  ).filter(Boolean);
+  const anchor = config.freeRowsAfter ?? '';
+  const anchorField = selectField<string>({
+    label: t('extras.anchor.label'),
+    value: names.includes(anchor) ? anchor : '',
+    options: [{ value: '', label: t('extras.anchor.end') }, ...names.map((n) => ({ value: n, label: n }))],
+  });
+  anchorField.select.setAttribute('data-focus-key', 'free-anchor');
+  anchorField.select.addEventListener('change', () => {
+    const v = anchorField.select.value;
+    const { freeRowsAfter: _old, ...rest } = ctx.data.config;
+    ctx.commit({ ...ctx.data, config: v ? { ...rest, freeRowsAfter: v } : rest });
+  });
+  const extrasCard = card({ title: t('extras.anchor.title'), sub: t('extras.anchor.sub'), id: 'filas-libres' }, anchorField.el);
+
   const backupCard = card(
     { title: t('settings.backup'), sub: t('settings.backup.sub'), id: 'backup' },
     h('p', { class: 'meta-line' }, meta.lastBackup ? t('settings.backup.last', { date: fmtDateTime(meta.lastBackup) }) : t('settings.backup.never')),
@@ -226,6 +248,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     accountsCard,
     itemsCard,
     paymentsCard,
+    extrasCard,
     syncCard(ctx),
     backupCard,
     shareCard,

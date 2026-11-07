@@ -67,6 +67,10 @@ export interface Config {
   /** Orden de los bloques de la tabla del mes (opcional). */
   sections?: string[];
   debts?: Debt[];
+  /** Nombre de las filas libres de cada mes: `"AAAA-MM_f<fila>"` → texto. */
+  freeLabels?: Record<string, string>;
+  /** Las filas libres se muestran detrás de la partida con este nombre (si no, al final). */
+  freeRowsAfter?: string;
 }
 
 /** Importe cambiado solo para un mes: `"AAAA-MM_i<item>"` o `"AAAA-MM_p<pago>"`. */

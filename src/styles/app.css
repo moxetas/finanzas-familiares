@@ -1492,3 +1492,26 @@ textarea {
   width: 28px;
   color: var(--muted);
 }
+
+/* Filas libres y traspaso de cada mes */
+.label-btn {
+  border: 0;
+  background: transparent;
+  padding: 6px 0;
+  min-height: 40px;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 4px;
+}
+.label-btn.is-empty,
+.cell-btn.is-empty {
+  color: var(--muted);
+  font-weight: 400;
+}
+.row-transfer th,
+.row-transfer td {
+  border-top: 1px solid var(--line-strong);
+}

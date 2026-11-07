@@ -113,9 +113,9 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     payments.push(pay);
   }
 
-  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+)$/, (key) => {
+  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+|f[0-2]_c\d+|t_c\d+)$/, (key) => {
     const m = /_([ip])(\d+)$/.exec(key);
-    if (!m) return true; // cifra cambiada de un mes de `history`
+    if (!m) return true; // cifra de un mes de `history`, fila libre o traspaso
     const [, kind, idx] = m;
     const limit = kind === 'i' ? items.length : payments.length;
     return Number(idx) < limit;
@@ -159,6 +159,15 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     }))
     .filter((d) => d.match);
 
+  const freeLabels: Record<string, string> = {};
+  if (isObj(cfg['freeLabels'])) {
+    for (const [k, v] of Object.entries(cfg['freeLabels']).slice(0, 2000)) {
+      const label = cleanText(v, 80);
+      if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && label) freeLabels[k] = label;
+    }
+  }
+  const freeRowsAfter = cleanText(cfg['freeRowsAfter'], 120);
+
   const out: AppData = {
     config: {
       year,
@@ -168,6 +177,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       payments,
       ...(sections.length ? { sections } : {}),
       ...(debts.length ? { debts } : {}),
+      ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
+      ...(freeRowsAfter ? { freeRowsAfter } : {}),
     },
     overrides,
     real_balances,
@@ -244,7 +255,8 @@ function numericDict(
     if (count >= MAX.keys) break;
     if (!pattern.test(key) || !valid(key)) continue;
     if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-    out[key] = positive && !/_r\d+_c\d+$/.test(key) ? Math.abs(round2(value)) : round2(value);
+    // Solo los importes de conceptos y pagos son siempre positivos; el resto puede ser negativo.
+    out[key] = positive && /_[ip]\d+$/.test(key) ? Math.abs(round2(value)) : round2(value);
     count++;
   }
   return out;

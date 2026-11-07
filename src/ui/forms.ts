@@ -2,6 +2,7 @@
 
 import type { Line } from '../calc/engine';
 import { monthKey, daysInMonth, todayISO } from '../calc/keys';
+import { setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
 import {
   removeDomRow,
   saveDomRow,
@@ -420,5 +421,57 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
     title: at ? t('dom.edit') : t('dom.new'),
     content: [concept.el, cost.el, from.el, to.el, groupField.el, ticker.el],
     actions,
+  });
+}
+
+// ── Filas libres y traspaso de cada mes ─────────────────────────────────────
+
+/** Importe de una fila libre o del traspaso en una cuenta. Vacío lo borra. */
+export function editExtraCell(ctx: Ctx, opts: { ym: string; col: number; slot: number | null; title: string; current: number | null }): void {
+  const amount = amountField({
+    label: t('field.amount'),
+    value: opts.current,
+    allowNegative: true,
+    optional: true,
+    hint: opts.slot === null ? t('extras.transfer.hint') : t('extras.free.hint'),
+  });
+  const apply = (v: number | null) =>
+    ctx.commit(opts.slot === null ? setTransferCell(ctx.data, opts.ym, opts.col, v) : setFreeCell(ctx.data, opts.ym, opts.slot, opts.col, v));
+  const actions: DialogAction[] = [];
+  if (opts.current !== null) actions.push({ label: t('action.delete'), kind: 'danger', onClick: () => apply(null) });
+  actions.push(
+    { label: t('action.cancel') },
+    {
+      label: t('action.save'),
+      submit: true,
+      onClick: () => {
+        const r = amount.read();
+        if (!r.ok) return false;
+        apply(r.value);
+      },
+    },
+  );
+  openDialog({ title: opts.title, content: [amount.el], actions });
+  amount.input.select();
+}
+
+/** Nombre de una fila libre en un mes. */
+export function editFreeLabel(ctx: Ctx, ym: string, slot: number, current: string): void {
+  const name = textField({ label: t('field.concept'), value: current, optional: true, maxlength: 80, hint: t('extras.label.hint') });
+  openDialog({
+    title: `${t('extras.free', { n: slot + 1 })} · ${fmtYearMonth(ym)}`,
+    content: [name.el],
+    actions: [
+      { label: t('action.cancel') },
+      {
+        label: t('action.save'),
+        submit: true,
+        onClick: () => {
+          const r = name.read();
+          if (!r.ok) return false;
+          ctx.commit(setFreeLabel(ctx.data, ym, slot, r.value));
+        },
+      },
+    ],
   });
 }

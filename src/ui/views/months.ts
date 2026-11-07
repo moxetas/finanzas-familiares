@@ -10,6 +10,8 @@ import type { Ctx } from '../context';
 import { h, uid } from '../dom';
 import { editEntry, editHistoryCell, editOverride } from '../forms';
 import { icon } from '../icons';
+import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
+import { freeRows, transferRow } from '../extra-rows';
 
 /** Meses de años anteriores guardados en `history`, ordenados: `["2026-02", …]`. */
 export function historyKeys(ctx: Ctx): string[] {
@@ -66,8 +68,10 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
   const m = ctx.data.history![ym]!;
   const { overrides, real_balances } = ctx.data;
   const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => overrides[historyCellKey(ym, ri, ci)] ?? orig));
+  const extras = monthExtras(ctx.data, ym, m.cols.length);
+  const effect = extrasEffect(extras);
   const tot = m.tot.map((base, ci) => {
-    let v = base ?? 0;
+    let v = (base ?? 0) + (effect.delta[ci] ?? 0);
     m.rows.forEach((r, ri) => {
       const o = overrides[historyCellKey(ym, ri, ci)];
       if (o !== undefined) v += o - (r.v[ci] ?? 0);
@@ -92,6 +96,22 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
       ),
     );
   };
+  // Filas del mes; las libres van detrás de la partida elegida en Ajustes (o al final) y el traspaso al final.
+  const extraOpts = { ym, colNames: m.cols, totalCol: false, noteCol: false };
+  const historyBody = () => {
+    const out: HTMLElement[] = [];
+    let placed = false;
+    m.rows.forEach((r, ri) => {
+      out.push(h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
+      if (!placed && isFreeRowsAnchor(r.l, ctx.data.config.freeRowsAfter)) {
+        out.push(...freeRows(ctx, extras, extraOpts));
+        placed = true;
+      }
+    });
+    if (!placed) out.push(...freeRows(ctx, extras, extraOpts));
+    out.push(transferRow(ctx, extras, extraOpts));
+    return out;
+  };
   const table = h(
     'table',
     { class: 'grid-table plan-table' },
@@ -99,7 +119,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     h(
       'tbody',
       null,
-      m.rows.map((r, ri) => h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`)))),
+      historyBody(),
       h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), tot.map((v) => h('td', { class: 'n strong' }, money(v, { plain: true })))),
     ),
   );
@@ -120,6 +140,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     leftover: 0,
     totalClosing: 0,
     debts: [],
+    extras,
   };
   return h(
     'div',
@@ -250,10 +271,18 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     );
   }
 
+  const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes };
+  let freePlaced = false;
   const sectionRows = (label: string, lines: Line[]) => {
     if (lines.length === 0) return;
     rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, label)));
-    for (const line of lines) rows.push(lineRow(ctx, line, month, several, hasNotes));
+    for (const line of lines) {
+      rows.push(lineRow(ctx, line, month, several, hasNotes));
+      if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsAfter)) {
+        rows.push(...freeRows(ctx, m.extras, extraOpts));
+        freePlaced = true;
+      }
+    }
   };
 
   const sections = ctx.data.config.sections ?? [];
@@ -269,6 +298,8 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   if (m.lines.length === 0) {
     rows.push(h('tr', null, h('td', { colspan: span, class: 'empty-cell' }, t('months.empty'))));
   }
+  if (!freePlaced) rows.push(...freeRows(ctx, m.extras, extraOpts));
+  rows.push(transferRow(ctx, m.extras, extraOpts));
 
   rows.push(
     h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), m.delta.map((v) => numCell(v)), several ? numCell(sum(m.delta)) : null, noteCell()),

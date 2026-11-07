@@ -20,6 +20,7 @@
  * traspasos no son gasto. Sobra = ingresos − gasto real − apartado.
  */
 
+import { extrasEffect, monthExtras, type MonthExtras } from './extras';
 import { itemOverrideKey, monthKey, parseDate, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2, sum } from './money';
 import type { AppData, Config, Entry, Item, ItemType, Overrides } from './types';
@@ -85,6 +86,8 @@ export interface MonthResult {
   totalClosing: number;
   /** Deudas que quedan por pagar al acabar el mes. */
   debts: { name: string; account: number; remaining: number; note: string }[];
+  /** Filas libres y traspaso del mes (ya sumados en `delta`). */
+  extras: MonthExtras;
 }
 
 export interface YearResult {
@@ -271,6 +274,13 @@ export function computeYear(data: AppData): YearResult {
       else if (line.account >= 0) saved += line.amount; // lo que viene de fuera (p. ej. la empresa) no es ahorro tuyo
     }
 
+    // Filas libres (ingreso o gasto) y traspaso entre cuentas de este mes.
+    const extras = monthExtras(data, key, n);
+    const effect = extrasEffect(extras);
+    for (let c = 0; c < n; c++) delta[c] = round2(delta[c]! + (effect.delta[c] ?? 0));
+    income += effect.income;
+    spending += effect.spending;
+
     const spent = config.accounts.map((a) => a.spent === true);
     for (let c = 0; c < n; c++) if (spent[c]) start[c] = 0;
     const end = start.map((s, c) => (spent[c] ? 0 : round2(s + delta[c]!)));
@@ -302,6 +312,7 @@ export function computeYear(data: AppData): YearResult {
       leftover: round2(income - spending - saved),
       totalClosing: sum(closing),
       debts: debtsAfter(data, month),
+      extras,
     });
 
     prevEnd = end;
