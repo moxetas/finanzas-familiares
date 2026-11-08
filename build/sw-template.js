@@ -34,6 +34,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
 
   // Abrir la app: siempre la versión guardada (rápido y sin conexión).
+  // Los archivos que se abren directamente (la guía en PDF, por ejemplo) van a la red.
+  const isAppPage = !/\.[a-z0-9]+$/i.test(url.pathname) || url.pathname.endsWith('.html');
+  if (req.mode === 'navigate' && !isAppPage) {
+    event.respondWith(fetch(req).catch(() => caches.match(req, { cacheName: CACHE }).then((hit) => hit || Response.error())));
+    return;
+  }
   if (req.mode === 'navigate') {
     event.respondWith(
       caches.match(new URL('index.html', self.registration.scope).href, { cacheName: CACHE }).then((hit) => hit || fetch(req)),
