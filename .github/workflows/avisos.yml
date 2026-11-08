@@ -25,8 +25,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-save --no-package-lock web-push@3.6.7
-      - run: node .github/scripts/avisos.mjs
+      # Se instala aparte, fuera del proyecto: así npm no intenta tocar las dependencias de la app.
+      - name: Preparar el envío de avisos
+        run: |
+          mkdir -p "$RUNNER_TEMP/avisos"
+          cp .github/scripts/avisos.mjs "$RUNNER_TEMP/avisos/"
+          cd "$RUNNER_TEMP/avisos"
+          echo '{"private":true,"type":"module"}' > package.json
+          npm install --no-audit --no-fund web-push@3.6.7
+      - name: Enviar avisos
+        run: node "$RUNNER_TEMP/avisos/avisos.mjs"
         env:
           FAMILIA_CODIGO: ${{ secrets.FAMILIA_CODIGO }}
       # GitHub para los procesos programados de un repositorio sin cambios en 60 días; esto lo mantiene activo
