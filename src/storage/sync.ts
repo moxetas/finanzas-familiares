@@ -15,6 +15,7 @@
 
 import type { AppData, Entry } from '../calc/types';
 import { sanitizeData } from './sanitize';
+import { familyKey, sealAll, unsealAll } from './cipher';
 
 export const FIREBASE_DB = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
 const LS_KEY = 'finanzas-familiares:sync';
@@ -135,7 +136,15 @@ export interface SyncHost {
 interface Info {
   code: string;
   base: Flat;
+  /** 2 = datos cifrados en `finanzas-c`. Sin versión: aún en `finanzas` sin cifrar. */
+  v?: number;
 }
+
+/** Datos cifrados (desde la v2). */
+const PATH = 'finanzas-c';
+/** Datos de antes del cifrado: se pasan a `PATH` y, una semana después, se borran. */
+const OLD_PATH = 'finanzas';
+const OLD_GRACE = 7 * 24 * 3600 * 1000;
 
 export type ConnectResult = 'ok' | 'needs-choice' | 'denied' | 'offline';
 
@@ -153,7 +162,7 @@ export class Sync {
   constructor(private host: SyncHost) {
     try {
       const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null') as Info | null;
-      if (saved && typeof saved.code === 'string' && readCode(saved.code)) this.info = { code: saved.code, base: saved.base ?? {} };
+      if (saved && typeof saved.code === 'string' && readCode(saved.code)) this.info = { code: saved.code, base: saved.base ?? {}, v: saved.v };
     } catch {
       /* sin sincronización guardada */
     }
@@ -183,8 +192,64 @@ export class Sync {
     }
   }
 
-  private url(): string {
-    return `${FIREBASE_DB}/familias/${this.info!.code}/finanzas.json`;
+  private url(path = PATH, code = this.info!.code): string {
+    return `${FIREBASE_DB}/familias/${code}/${path}.json`;
+  }
+
+  /** Lee y descifra lo que hay en la nube (`{}` si no hay nada). */
+  private async fetchRemote(code: string, path = PATH): Promise<Flat> {
+    const res = await fetch(this.url(path, code), { cache: 'no-store' });
+    if (res.status === 401 || res.status === 403) throw new DeniedError();
+    if (!res.ok) throw new Error(String(res.status));
+    const raw = fromRemote(await res.json());
+    if (path === OLD_PATH) return raw;
+    return (await unsealAll(await familyKey(code), raw)).values;
+  }
+
+  /** Cifra un parche o unos datos completos antes de enviarlos. */
+  private async sealed(code: string, patch: Record<string, string | number | null>): Promise<Record<string, string | null>> {
+    return sealAll(await familyKey(code), patch);
+  }
+
+  /**
+   * Paso único a los datos cifrados: si ya hay datos cifrados, mandan (son los de los
+   * móviles ya actualizados); si no, se juntan los de antes con los de este móvil y se
+   * suben cifrados. Los de antes se borran una semana después (ver `cleanOld`).
+   */
+  private async migrate(info: Info): Promise<void> {
+    const remote = await this.fetchRemote(info.code);
+    if (Object.keys(remote).length > 0) {
+      this.host.replaceData(unflatten(remote, this.host.fallbackYear(), this.host.accountName()));
+      info.base = remote;
+    } else {
+      const old = await this.fetchRemote(info.code, OLD_PATH);
+      const cur = flatten(this.host.getData());
+      const merged = Object.keys(old).length ? mergeFlat(info.base, old, cur) : cur;
+      const res = await fetch(this.url(PATH, info.code), { method: 'PUT', body: JSON.stringify(toRemote(await this.sealed(info.code, merged) as Flat)) });
+      if (!res.ok) throw new Error(String(res.status));
+      await fetch(`${FIREBASE_DB}/familias/${info.code}/finanzas-migrado.json`, { method: 'PUT', body: JSON.stringify(Date.now()) }).catch(() => null);
+      if (Object.keys(diffFlat(cur, merged)).length > 0) this.host.replaceData(unflatten(merged, this.host.fallbackYear(), this.host.accountName()));
+      info.base = merged;
+    }
+    info.v = 2;
+    this.save();
+  }
+
+  private cleaned = false;
+
+  /** Borra los datos sin cifrar de antes, cuando ya ha pasado una semana desde el cambio. */
+  private async cleanOld(code: string): Promise<void> {
+    if (this.cleaned) return;
+    this.cleaned = true;
+    try {
+      const res = await fetch(`${FIREBASE_DB}/familias/${code}/finanzas-migrado.json`, { cache: 'no-store' });
+      const when = (await res.json()) as unknown;
+      if (typeof when === 'number' && Date.now() - when > OLD_GRACE) {
+        await fetch(this.url(OLD_PATH, code), { method: 'DELETE' });
+      }
+    } catch {
+      /* se intentará otro día */
+    }
   }
 
   /** Arranca la sincronización si ya estaba activada en este móvil. */
@@ -207,14 +272,13 @@ export class Sync {
   /** Activa la sincronización con un código. */
   async connect(code: string, choice?: 'cloud' | 'phone'): Promise<ConnectResult> {
     const prev = this.info;
-    this.info = { code, base: {} };
+    this.info = { code, base: {}, v: 2 };
     this.setStatus('connecting');
     let remote: Flat;
     try {
-      const res = await fetch(this.url(), { cache: 'no-store' });
-      if (res.status === 401 || res.status === 403) throw new DeniedError();
-      if (!res.ok) throw new Error(String(res.status));
-      remote = fromRemote(await res.json());
+      remote = await this.fetchRemote(code);
+      // Familia que aún no ha pasado al cifrado: se toman sus datos de antes.
+      if (Object.keys(remote).length === 0) remote = await this.fetchRemote(code, OLD_PATH);
     } catch (e) {
       this.info = prev;
       this.setStatus(prev ? this.status : 'off');
@@ -229,19 +293,21 @@ export class Sync {
     }
     if (hasRemote && (local.config.example || choice === 'cloud')) {
       this.host.replaceData(unflatten(remote, this.host.fallbackYear(), this.host.accountName()));
-      this.info = { code, base: remote };
+      // Se suben cifrados (si venían de los datos de antes, así quedan ya pasados).
+      await fetch(this.url(PATH, code), { method: 'PUT', body: JSON.stringify(toRemote((await this.sealed(code, remote)) as Flat)) }).catch(() => null);
+      this.info = { code, base: remote, v: 2 };
     } else if (hasRemote && choice === 'phone') {
       // Lo de este móvil sustituye lo que había en la nube.
       const cur = flatten(local);
-      const res = await fetch(this.url(), { method: 'PUT', body: JSON.stringify(toRemote(cur)) }).catch(() => null);
+      const res = await fetch(this.url(), { method: 'PUT', body: JSON.stringify(toRemote((await this.sealed(code, cur)) as Flat)) }).catch(() => null);
       if (!res?.ok) {
         this.info = prev;
         this.setStatus('offline');
         return 'offline';
       }
-      this.info = { code, base: cur };
+      this.info = { code, base: cur, v: 2 };
     } else {
-      this.info = { code, base: {} };
+      this.info = { code, base: {}, v: 2 };
     }
     this.save();
     this.setStatus('online');
@@ -272,7 +338,8 @@ export class Sync {
       const patch = diffFlat(info.base, cur);
       if (Object.keys(patch).length === 0) return;
       try {
-        const res = await fetch(this.url(), { method: 'PATCH', body: JSON.stringify(patch) });
+        if (info.v !== 2) return; // primero el paso a cifrado (lo hace pull)
+        const res = await fetch(this.url(), { method: 'PATCH', body: JSON.stringify(await this.sealed(info.code, patch)) });
         if (res.status === 401 || res.status === 403) {
           this.setStatus('denied');
           return;
@@ -298,14 +365,15 @@ export class Sync {
       const info = this.info;
       if (!info) return;
       try {
-        const res = await fetch(this.url(), { cache: 'no-store' });
-        if (res.status === 401 || res.status === 403) {
-          this.setStatus('denied');
+        if (info.v !== 2) {
+          await this.migrate(info);
+          this.setStatus('online');
+          this.lastSync = Date.now();
           return;
         }
-        if (!res.ok) throw new Error(String(res.status));
-        const remote = fromRemote(await res.json());
+        const remote = await this.fetchRemote(info.code);
         if (this.info !== info) return;
+        void this.cleanOld(info.code);
         const cur = flatten(this.host.getData());
         const merged = mergeFlat(info.base, remote, cur);
         if (Object.keys(diffFlat(cur, merged)).length > 0) {
@@ -316,7 +384,11 @@ export class Sync {
         this.save();
         this.setStatus('online');
         if (Object.keys(diffFlat(remote, merged)).length > 0) this.localChanged();
-      } catch {
+      } catch (e) {
+        if (e instanceof DeniedError) {
+          this.setStatus('denied');
+          return;
+        }
         this.setStatus('offline');
         this.scheduleRetry();
       }

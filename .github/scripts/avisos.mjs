@@ -3,10 +3,11 @@
 // (el mismo código de familia que se usa en la app para sincronizar).
 //
 // Lee de Firebase, dentro de /familias/<código>:
-//   finanzas           → las cuentas sincronizadas de la app (pagos e importes cambiados)
+//   finanzas-c         → las cuentas sincronizadas, CIFRADAS con el código de familia
+//                        (si aún no hay, se leen las de antes, `finanzas`, sin cifrar)
 //   finanzas-push      → los móviles que han activado los avisos (suscripciones Web Push)
 //   vapid              → claves para firmar los avisos (las mismas que usa Menú familiar)
-//   finanzas-avisados  → qué avisos ya se han enviado (lo escribe este script)
+//   finanzas-avisados  → qué avisos ya se han enviado (huellas, sin conceptos; lo escribe este script)
 //   finanzas-servidor  → cuándo pasó este script por última vez (lo enseña la app)
 //
 // El repositorio es público: los registros (logs) solo muestran cuántos avisos se envían,
@@ -14,6 +15,44 @@
 
 export const FIREBASE_DB = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
 const ZONA = 'Europe/Madrid';
+const SALT = 'finanzas-familiares/cifrado/v1';
+const enc = new TextEncoder();
+
+/** Misma clave que la app (src/storage/cipher.ts): HKDF-SHA-256 del código de familia. */
+export async function familyKey(code) {
+  const clean = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const base = await crypto.subtle.importKey('raw', enc.encode(clean), 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode(SALT), info: enc.encode('datos') }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+}
+
+async function unseal(key, v) {
+  if (typeof v !== 'string' || !v.startsWith('c1.')) return v;
+  try {
+    const b = Buffer.from(v.slice(3).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b.subarray(0, 12) }, key, b.subarray(12));
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Descifra el nodo `finanzas-c` ({cfg, ov:{…}}) y lo deja como el de antes. */
+export async function descifrar(raw, code) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const key = await familyKey(code);
+  const ov = {};
+  for (const [k, v] of Object.entries(raw.ov || {})) {
+    const x = await unseal(key, v);
+    if (typeof x === 'number') ov[k] = x;
+  }
+  return { cfg: await unseal(key, raw.cfg), ov };
+}
+
+/** Huella de un aviso (para no guardar conceptos ni fechas en claro). */
+async function huella(code, key) {
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(`${code}|${key}`));
+  return Buffer.from(d).subarray(0, 12).toString('hex');
+}
 /** No se avisa antes de esta hora (hora de España). */
 const HORA_AVISOS = 9;
 
@@ -77,18 +116,17 @@ export function textoAviso(a) {
 }
 
 /** Qué hay que enviar ahora y la lista de enviados actualizada (sin los de hace más de 40 días). */
-export function avisosQueTocan(data, ahora) {
+export async function avisosQueTocan(data, ahora, code = '') {
   const { hoy, hora } = ahoraEnZona(ahora);
-  const limite = new Date(diaUTC(hoy) - 40 * 864e5).toISOString().slice(0, 10);
+  // Se olvidan los avisos enviados hace más de 40 días.
   const avisados = {};
-  for (const [k, v] of Object.entries(data.avisados || {})) if (k.slice(0, 10) >= limite) avisados[k] = v;
+  for (const [k, v] of Object.entries(data.avisados || {})) if (typeof v === 'number' && ahora - v < 40 * 864e5) avisados[k] = v;
   const fin = leerFinanzas(data.finanzas);
   // Con el ejemplo ficticio no se avisa; por la noche tampoco (se espera a las 9:00).
   if (fin.example || hora < HORA_AVISOS) return { enviar: [], avisados };
   const enviar = [];
   for (const a of avisosDeHoy(fin, hoy)) {
-    // Firebase no admite «.», «#», «$», «[», «]» ni «/» en las claves.
-    const id = a.key.replace(/[.#$[\]/]/g, '_');
+    const id = await huella(code, a.key);
     if (avisados[id]) continue;
     enviar.push(a);
     avisados[id] = ahora;
@@ -103,13 +141,15 @@ async function firebase(code, path, method = 'GET', body) {
 }
 
 export async function run({ code, ahora = Date.now(), send, db = firebase }) {
-  const [finanzas, push, vapid, avisados] = await Promise.all([
+  const [cifradas, antiguas, push, vapid, avisados] = await Promise.all([
+    db(code, 'finanzas-c'),
     db(code, 'finanzas'),
     db(code, 'finanzas-push'),
     db(code, 'vapid'),
     db(code, 'finanzas-avisados'),
   ]);
-  const { enviar, avisados: nuevos } = avisosQueTocan({ finanzas, avisados }, ahora);
+  const finanzas = cifradas ? await descifrar(cifradas, code) : antiguas;
+  const { enviar, avisados: nuevos } = await avisosQueTocan({ finanzas, avisados }, ahora, code);
   const subs = Object.entries(push || {});
   let enviados = 0;
   const caducados = new Set();

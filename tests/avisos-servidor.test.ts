@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — script de Node en JavaScript, sin tipos
 import { ahoraEnZona, avisosQueTocan, run, textoAviso } from '../.github/scripts/avisos.mjs';
+import { familyKey as appKey, seal } from '../src/storage/cipher';
 
 const finanzas = (payments: unknown[], ov: Record<string, number> = {}, example = false) => ({
   cfg: JSON.stringify({ config: { year: 2026, example, accounts: [], items: [], payments } }),
@@ -15,7 +16,7 @@ describe('servicio de avisos', () => {
     expect(ahoraEnZona(Date.UTC(2026, 10, 10, 23, 30)).hoy).toBe('2026-11-11');
   });
 
-  it('avisa a 7-2 días (semana) y mañana u hoy (día), una sola vez', () => {
+  it('avisa a 7-2 días (semana) y mañana u hoy (día), una sola vez', async () => {
     const data = {
       finanzas: finanzas(
         [
@@ -28,17 +29,19 @@ describe('servicio de avisos', () => {
       ),
       avisados: {},
     };
-    const r = avisosQueTocan(data, AHORA);
+    const r = await avisosQueTocan(data, AHORA, 'c');
     expect(r.enviar.map((a: { key: string }) => a.key)).toEqual(['2026-11-11|Seguro|day', '2026-11-15|Alcantarillado|week']);
     expect(r.enviar[0].importe).toBe(400);
-    const otra = avisosQueTocan({ ...data, avisados: r.avisados }, AHORA + 3600e3);
+    const otra = await avisosQueTocan({ ...data, avisados: r.avisados }, AHORA + 3600e3, 'c');
+    // En la lista de enviados no aparecen conceptos ni fechas.
+    expect(JSON.stringify(r.avisados)).not.toMatch(/Seguro|2026/);
     expect(otra.enviar).toHaveLength(0);
   });
 
-  it('no avisa de noche ni con el ejemplo', () => {
+  it('no avisa de noche ni con el ejemplo', async () => {
     const p = [{ date: '2026-11-11', concept: 'Seguro', amount: 1, account: 0, estimated: false }];
-    expect(avisosQueTocan({ finanzas: finanzas(p) }, Date.UTC(2026, 10, 10, 5, 0)).enviar).toHaveLength(0);
-    expect(avisosQueTocan({ finanzas: finanzas(p, {}, true) }, AHORA).enviar).toHaveLength(0);
+    expect((await avisosQueTocan({ finanzas: finanzas(p) }, Date.UTC(2026, 10, 10, 5, 0))).enviar).toHaveLength(0);
+    expect((await avisosQueTocan({ finanzas: finanzas(p, {}, true) }, AHORA)).enviar).toHaveLength(0);
   });
 
   it('texto del aviso', () => {
@@ -70,6 +73,22 @@ describe('servicio de avisos', () => {
     expect(sent).toEqual(['https://push/a']);
     expect(r.caducados).toEqual(['b']);
     expect(patch['finanzas-push/b']).toBeNull();
-    expect(Object.keys(patch['finanzas-avisados'] as object)).toEqual(['2026-11-11|Seguro|day']);
+    expect(Object.keys(patch['finanzas-avisados'] as object)).toHaveLength(1);
+  });
+
+  it('lee los datos cifrados por la app', async () => {
+    const code = 'abcd-efgh-jkmn-pqrs-tuvw';
+    const plain = finanzas([{ date: '2026-11-11', concept: 'Seguro', amount: 1, account: 0, estimated: false }], { '2026-11_p0': 7 });
+    const k = await appKey(code);
+    const store: Record<string, unknown> = {
+      'finanzas-c': { cfg: await seal(k, plain.cfg), ov: { '2026-11_p0': await seal(k, 7) } },
+      'finanzas-push': { a: { endpoint: 'https://push/a', keys: {} } },
+      vapid: { publicKey: 'x', privateKey: 'y' },
+    };
+    const db = async (_c: string, path: string, method = 'GET') => (method === 'GET' ? (store[path] ?? null) : {});
+    const payloads: string[] = [];
+    await run({ code, ahora: AHORA, send: async (_s: unknown, p: string) => void payloads.push(p), db });
+    expect(payloads).toHaveLength(1);
+    expect(JSON.parse(payloads[0]!).body).toContain('7,00');
   });
 });
