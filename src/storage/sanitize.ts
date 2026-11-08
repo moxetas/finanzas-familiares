@@ -7,7 +7,7 @@
 
 import { parseDate } from '../calc/keys';
 import { round2 } from '../calc/money';
-import type { Account, AppData, Debt, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
+import type { BtcTrade, SalaryPerson, Account, AppData, Debt, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
 
 const ITEM_TYPES: readonly ItemType[] = ['Ingreso', 'Gasto', 'Ahorro'];
 const ENTRY_TYPES: readonly EntryType[] = ['Ingreso', 'Gasto'];
@@ -167,6 +167,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     }
   }
   const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);
+  const salaries = sanitizeSalaries(cfg['salaries']);
+  const btc = sanitizeBtc(cfg['btc']);
 
   const out: AppData = {
     config: {
@@ -179,6 +181,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       ...(debts.length ? { debts } : {}),
       ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
       ...(freeRowsBefore ? { freeRowsBefore } : {}),
+      ...(salaries.length ? { salaries } : {}),
+      ...(btc.length ? { btc } : {}),
     },
     overrides,
     real_balances,
@@ -268,3 +272,46 @@ export function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function ymDict(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isObj(v)) return out;
+  for (const [k, x] of Object.entries(v).slice(0, 600)) {
+    if (YM.test(k) && typeof x === 'number' && Number.isFinite(x)) out[k] = round2(x);
+  }
+  return out;
+}
+
+/** Sueldos: personas con contratos y meses (AAAA-MM → importe). */
+export function sanitizeSalaries(v: unknown): SalaryPerson[] {
+  return arr(v)
+    .filter(isObj)
+    .slice(0, 10)
+    .map((p) => {
+      const estimates = ymDict(p['estimates']);
+      return {
+        name: cleanText(p['name']) || '—',
+        contracts: arr(p['contracts'])
+          .filter(isObj)
+          .slice(0, 30)
+          .map((c) => ({ from: typeof c['from'] === 'string' && YM.test(c['from']) ? c['from'] : '', name: cleanText(c['name']) }))
+          .filter((c) => c.from),
+        months: ymDict(p['months']),
+        ...(Object.keys(estimates).length ? { estimates } : {}),
+      };
+    });
+}
+
+/** Operaciones de BTC. */
+export function sanitizeBtc(v: unknown): BtcTrade[] {
+  const out: BtcTrade[] = [];
+  for (const t of arr(v).filter(isObj).slice(0, 2000)) {
+    const date = typeof t['date'] === 'string' ? t['date'].slice(0, 10) : '';
+    const qty = typeof t['qty'] === 'number' && Number.isFinite(t['qty']) ? Math.round(t['qty'] * 1e8) / 1e8 : NaN;
+    if (!parseDate(date) || !Number.isFinite(qty)) continue;
+    out.push({ date, qty, price: num(t['price']), paid: num(t['paid']) });
+  }
+  return out;
+}

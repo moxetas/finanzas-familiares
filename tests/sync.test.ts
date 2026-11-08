@@ -51,7 +51,8 @@ describe('motor: cuentas de gasto diario, dinero de fuera y deudas', () => {
     expect(jan.end[1]).toBe(230);
   });
   it('la deuda baja con los pagos', () => {
-    expect(y.months.map((m) => m.debts[0]!.remaining).slice(0, 4)).toEqual([250, 150, 50, 50]);
+    // La deuda de cada mes es la que queda al empezarlo: el pago de febrero se ve en marzo.
+    expect(y.months.map((m) => m.debts[0]!.remaining).slice(0, 4)).toEqual([250, 250, 150, 50]);
   });
 });
 

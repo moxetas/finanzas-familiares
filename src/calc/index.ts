@@ -5,3 +5,5 @@ export * from './engine';
 export * from './mutations';
 export * from './reminders';
 export * from './extras';
+export * from './debts';
+export * from './income';

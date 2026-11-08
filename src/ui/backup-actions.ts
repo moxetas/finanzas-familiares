@@ -1,6 +1,6 @@
 /** Botones de exportar e importar la copia de seguridad. */
 
-import { BackupError, backupFileName, parseBackup, serializeBackup } from '../storage/backup';
+import { BackupError, backupFileName, parseAnnex, parseBackup, serializeBackup } from '../storage/backup';
 import { t } from '../i18n';
 import type { Ctx } from './context';
 import { confirmDialog } from './dialog';
@@ -58,6 +58,20 @@ export function importBackup(ctx: Ctx): void {
       text = await file.text();
     } catch {
       toast(t('backup.error.read'));
+      return;
+    }
+    // Un anexo (sueldos, BTC) se añade a lo que ya hay, sin sustituir nada más.
+    const annex = parseAnnex(text);
+    if (annex) {
+      const parts = [annex.salaries ? t('annex.salaries', { n: annex.salaries.length }) : null, annex.btc ? t('annex.btc', { n: annex.btc.length }) : null].filter(Boolean).join(' · ');
+      const yes = await confirmDialog({ text: t('annex.confirm', { what: parts }), yes: t('confirm.yes.import') });
+      if (yes) {
+        const config = { ...ctx.data.config };
+        if (annex.salaries) config.salaries = annex.salaries;
+        if (annex.btc) config.btc = annex.btc;
+        ctx.commit({ ...ctx.data, config }, t('toast.imported'));
+        ctx.go('#/sueldos');
+      }
       return;
     }
     try {

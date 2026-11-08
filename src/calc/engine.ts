@@ -20,6 +20,7 @@
  * traspasos no son gasto. Sobra = ingresos − gasto real − apartado.
  */
 
+import { debtsAt } from './debts';
 import { extrasEffect, monthExtras, type MonthExtras } from './extras';
 import { itemOverrideKey, monthKey, parseDate, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2, sum } from './money';
@@ -311,7 +312,7 @@ export function computeYear(data: AppData): YearResult {
       saved,
       leftover: round2(income - spending - saved),
       totalClosing: sum(closing),
-      debts: debtsAfter(data, month),
+      debts: debtsAt(data, month),
       extras,
     });
 
@@ -334,21 +335,6 @@ export function computeYear(data: AppData): YearResult {
       startOfYear: sum(config.accounts.map((a) => a.initial)),
     },
   };
-}
-
-/** Lo que queda de cada deuda al acabar el mes `month` (pagos de ese año hasta ese mes). */
-function debtsAfter(data: AppData, month: number): MonthResult['debts'] {
-  const { config, overrides } = data;
-  return (config.debts ?? []).map((debt) => {
-    let paid = 0;
-    config.payments.forEach((p, index) => {
-      const d = parseDate(p.date);
-      if (!d || d.year !== config.year || d.month > month) return;
-      if (!p.concept.startsWith(debt.match)) return;
-      paid += lookup(overrides, paymentOverrideKey(monthKey(d.year, d.month), index)) ?? p.amount;
-    });
-    return { name: debt.name, account: debt.account, remaining: Math.max(0, round2(debt.amount - paid)), note: debt.note ?? '' };
-  });
 }
 
 /** Un pago pendiente, con el importe que contará (el cambiado, si lo hay). */

@@ -69,6 +69,10 @@ export interface Config {
   debts?: Debt[];
   /** Nombre de las filas libres de cada mes: `"AAAA-MM_f<fila>"` → texto. */
   freeLabels?: Record<string, string>;
+  /** Sueldos de cada persona (pestaña Sueldos). */
+  salaries?: SalaryPerson[];
+  /** Compras y ventas de BTC (pestaña Sueldos). */
+  btc?: BtcTrade[];
   /** Las filas libres se muestran delante de la partida con este nombre (si no, al final). */
   freeRowsBefore?: string;
 }
@@ -123,4 +127,25 @@ export interface AppData {
   overrides: Overrides;
   real_balances: RealBalances;
   entries: Entry[];
+}
+
+/** Sueldos de una persona: los cobrados (confirmados) y, si se quiere, estimaciones a mano. */
+export interface SalaryPerson {
+  name: string;
+  /** Contratos por orden: cada uno empieza en `from` (AAAA-MM). La media se reinicia con cada contrato. */
+  contracts: { from: string; name: string }[];
+  /** Sueldos cobrados: AAAA-MM → importe. */
+  months: Record<string, number>;
+  /** Estimaciones puestas a mano para meses aún no cobrados: AAAA-MM → importe. */
+  estimates?: Record<string, number>;
+}
+
+/** Una compra (cantidad positiva) o venta (negativa) de BTC. */
+export interface BtcTrade {
+  /** AAAA-MM-DD */
+  date: string;
+  qty: number;
+  price: number;
+  /** Euros pagados (negativo en una venta). */
+  paid: number;
 }

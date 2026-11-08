@@ -12,6 +12,7 @@ import { editEntry, editHistoryCell, editOverride } from '../forms';
 import { icon } from '../icons';
 import { signButtons } from '../fields';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
+import { isDebtLabel } from '../../calc/debts';
 import { freeRows, transferRow } from '../extra-rows';
 
 /** Meses de años anteriores guardados en `history`, ordenados: `["2026-02", …]`. */
@@ -71,9 +72,15 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
   const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => overrides[historyCellKey(ym, ri, ci)] ?? orig));
   const extras = monthExtras(ctx.data, ym, m.cols.length);
   const effect = extrasEffect(extras);
+  // La fila «Deuda» es informativa: no cuenta en el total de la columna.
+  const debtRows = m.rows.map((r) => isDebtLabel(r.l));
   const tot = m.tot.map((base, ci) => {
     let v = (base ?? 0) + (effect.delta[ci] ?? 0);
+    const sumAll = m.rows.reduce((acc, r) => acc + (r.v[ci] ?? 0), 0);
+    // Si el total de la hoja incluía la deuda, se le quita.
+    if (Math.abs((base ?? 0) - sumAll) < 0.02) m.rows.forEach((r, ri) => debtRows[ri] && (v -= r.v[ci] ?? 0));
     m.rows.forEach((r, ri) => {
+      if (debtRows[ri]) return;
       const o = overrides[historyCellKey(ym, ri, ci)];
       if (o !== undefined) v += o - (r.v[ci] ?? 0);
     });
@@ -107,7 +114,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
         out.push(...freeRows(ctx, extras, extraOpts));
         placed = true;
       }
-      out.push(h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
+      out.push(h('tr', { class: debtRows[ri] ? 'row-line row-debt' : 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l), debtRows[ri] ? h('span', { class: 'debt-note' }, t('months.debt.info')) : null), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
     });
     if (!placed) out.push(...freeRows(ctx, extras, extraOpts));
     out.push(transferRow(ctx, extras, extraOpts));
@@ -263,8 +270,8 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     rows.push(
       h(
         'tr',
-        { class: 'row-sum' },
-        h('th', { scope: 'row' }, debt.name),
+        { class: 'row-sum row-debt' },
+        h('th', { scope: 'row' }, debt.name, h('span', { class: 'debt-note' }, t('months.debt.info'))),
         accounts.map((_, c) => (c === debt.account ? h('td', { class: `n${debt.remaining > 0 ? ' neg' : ''}` }, debt.remaining > 0 ? `−${fmtNumber(debt.remaining)}` : '–') : h('td', { class: 'n' }))),
         several ? h('td', { class: 'n' }) : null,
         noteCell(debt.note),

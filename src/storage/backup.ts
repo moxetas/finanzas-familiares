@@ -3,8 +3,8 @@
  * El archivo tiene la misma forma que el modelo de datos, más una cabecera.
  */
 
-import type { AppData } from '../calc/types';
-import { sanitizeData } from './sanitize';
+import type { AppData, BtcTrade, SalaryPerson } from '../calc/types';
+import { sanitizeBtc, sanitizeData, sanitizeSalaries } from './sanitize';
 
 export const BACKUP_APP = 'finanzas-familiares';
 export const BACKUP_VERSION = 1;
@@ -75,4 +75,24 @@ export function parseBackup(text: string, fallbackYear: number, defaultAccountNa
   const version = (raw as Record<string, unknown>)['version'];
   if (typeof version === 'number' && version > BACKUP_VERSION) throw new BackupError('newer-version');
   return sanitizeData(obj, fallbackYear, defaultAccountName);
+}
+
+/**
+ * Anexo: un archivo que solo añade sueldos y/o compras de BTC a los datos que ya hay
+ * (no los sustituye). Forma: `{ app, kind: "anexo", salaries?: [...], btc?: [...] }`.
+ * Devuelve `null` si el texto no es un anexo.
+ */
+export function parseAnnex(text: string): { salaries?: SalaryPerson[]; btc?: BtcTrade[] } | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text.replace(/^﻿/, ''));
+  } catch {
+    return null;
+  }
+  if (typeof raw !== 'object' || raw === null || (raw as Record<string, unknown>)['kind'] !== 'anexo') return null;
+  const r = raw as Record<string, unknown>;
+  const out: { salaries?: SalaryPerson[]; btc?: BtcTrade[] } = {};
+  if (Array.isArray(r['salaries'])) out.salaries = sanitizeSalaries(r['salaries']);
+  if (Array.isArray(r['btc'])) out.btc = sanitizeBtc(r['btc']);
+  return out;
 }

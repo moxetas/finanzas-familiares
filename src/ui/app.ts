@@ -15,12 +15,13 @@ import { mountToasts, toast } from './toast';
 import { startReminders } from './reminders';
 import { alertsView } from './views/alerts';
 import { domView } from './views/dom';
+import { incomeView } from './views/income';
 import { monthsView } from './views/months';
 import { settingsView } from './views/settings';
 import { summaryView } from './views/summary';
 
 interface Route {
-  name: 'resumen' | 'meses' | 'avisos' | 'dom' | 'ajustes';
+  name: 'resumen' | 'meses' | 'avisos' | 'dom' | 'sueldos' | 'ajustes';
   param?: string;
 }
 
@@ -29,12 +30,13 @@ const TABS: { name: Route['name']; label: MessageKey; icon: IconName }[] = [
   { name: 'meses', label: 'nav.months', icon: 'months' },
   { name: 'avisos', label: 'nav.alerts', icon: 'alerts' },
   { name: 'dom', label: 'nav.dom', icon: 'dom' },
+  { name: 'sueldos', label: 'nav.income', icon: 'income' },
   { name: 'ajustes', label: 'nav.settings', icon: 'settings' },
 ];
 
 function parseRoute(hash: string): Route {
   const [name, param] = hash.replace(/^#\/?/, '').split('/');
-  if (name === 'meses' || name === 'avisos' || name === 'dom' || name === 'ajustes' || name === 'resumen') return { name, param: param || undefined };
+  if (name === 'meses' || name === 'avisos' || name === 'dom' || name === 'sueldos' || name === 'ajustes' || name === 'resumen') return { name, param: param || undefined };
   return { name: 'resumen' };
 }
 
@@ -99,6 +101,8 @@ export function mountApp(root: HTMLElement, store: Store): void {
           ? alertsView(ctx)
           : route.name === 'dom'
             ? domView(ctx)
+          : route.name === 'sueldos'
+            ? incomeView(ctx, route.param)
           : route.name === 'ajustes'
             ? settingsView(ctx, changed ? route.param : undefined)
             : summaryView(ctx);
