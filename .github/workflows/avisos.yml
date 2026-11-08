@@ -1,0 +1,37 @@
+# Avisos de los pagos en el móvil: una semana antes y el día de antes, desde las 9:00.
+# Se ejecuta cada hora. Necesita el secreto FAMILIA_CODIGO con el código de familia de la app
+# (Settings → Secrets and variables → Actions → New repository secret).
+name: Avisos de pagos
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: avisos
+  cancel-in-progress: false
+
+jobs:
+  avisos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-package-lock web-push@3.6.7
+      - run: node .github/scripts/avisos.mjs
+        env:
+          FAMILIA_CODIGO: ${{ secrets.FAMILIA_CODIGO }}
+      # GitHub para los procesos programados de un repositorio sin cambios en 60 días; esto lo mantiene activo
+      - name: Mantener activos los avisos
+        if: always()
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/avisos.yml/enable" || true
+        env:
+          GH_TOKEN: ${{ github.token }}

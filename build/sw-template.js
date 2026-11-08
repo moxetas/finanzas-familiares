@@ -142,6 +142,25 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag === PERIODIC_TAG) event.waitUntil(notifyDuePayments().catch(() => undefined));
 });
 
+// Avisos que envía el proceso de GitHub (.github/scripts/avisos.mjs) con la app cerrada.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: 'Finanzas familiares', body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Finanzas familiares', {
+      body: data.body || '',
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      tag: data.tag || undefined,
+      data: { url: data.url || './#/avisos' },
+    }),
+  );
+});
+
 // Tocar la notificación abre la app (o la trae al frente) en Avisos.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

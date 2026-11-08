@@ -10,8 +10,8 @@ import type { Ctx } from '../context';
 import { h } from '../dom';
 import { editPayment } from '../forms';
 import { icon } from '../icons';
-import { isIOS } from '../install';
-import { backgroundSupported, enableNotifications, permission } from '../notify';
+import { isIOS, isStandalone } from '../install';
+import { disablePush, enablePush, lastServerRun, pushInfo, pushSupported, testPush } from '../push';
 import { toast } from '../toast';
 
 function when(p: UpcomingPayment): string {
@@ -56,42 +56,78 @@ function total(payments: UpcomingPayment[]): HTMLElement | null {
   return h('p', { class: 'group-total' }, t('alerts.groupTotal', { amount: fmtMoney(-sum(payments.map((p) => p.amount))) }));
 }
 
-/** Cómo avisa la app en este móvil: al abrirla, con notificaciones y con el calendario. */
-function notifyCard(ctx: Ctx): HTMLElement {
-  const perm = permission();
-  let status: string;
-  let enable: HTMLElement | null = null;
-  if (!backgroundSupported()) status = t('notify.unsupported');
-  else if (perm === 'denied') status = t('notify.denied');
-  else if (perm === 'granted') status = ctx.store.state.meta.notifyBackground ? t('notify.on') : t('notify.onNoBackground');
-  else {
-    status = t('notify.sub');
-    enable = button(t('notify.enable'), {
-      icon: 'alerts',
-      kind: 'primary',
-      focusKey: 'notify-enable',
-      onClick: async () => {
-        const result = await enableNotifications();
-        ctx.store.setMeta({ notifyBackground: result.background });
-        toast(result.permission === 'granted' ? t('notify.toast.on') : t('notify.toast.off'));
-      },
-    });
+/** Estado de los avisos con la app cerrada (Web Push) en este móvil. */
+function pushBlock(ctx: Ctx): HTMLElement {
+  const code = ctx.store.sync.code;
+  const info = pushInfo();
+  const line = (text: string, ...extra: (HTMLElement | null)[]) => h('li', null, icon('alerts', 18), h('div', { class: 'push-body' }, h('p', null, text), ...extra));
+  if (!pushSupported()) return line(isIOS() && !isStandalone() ? t('push.iosInstall') : t('push.unsupported'));
+  if (!code) return line(t('push.needSync'), button(t('push.goSync'), { focusKey: 'push-sync', onClick: () => ctx.go('#/ajustes/sync') }));
+  if (Notification.permission === 'denied') return line(t('push.denied'));
+  if (info && Notification.permission === 'granted') {
+    const server = h('p', { class: 'meta-line' }, t('push.server.checking'));
+    void lastServerRun(code)
+      .then((last) => {
+        if (last === null) {
+          server.textContent = t('push.server.never');
+          return;
+        }
+        const min = Math.round((Date.now() - last) / 60000);
+        const ago = min < 2 ? t('push.ago.now') : min < 120 ? t('push.ago.min', { n: min }) : t('push.ago.hours', { n: Math.round(min / 60) });
+        server.textContent = t('push.server.last', { ago }) + (min > 180 ? ` ${t('push.server.late')}` : '');
+      })
+      .catch(() => (server.textContent = ''));
+    return line(
+      t('push.on', { device: info.dispositivo }),
+      server,
+      h(
+        'div',
+        { class: 'button-row' },
+        button(t('push.test'), { focusKey: 'push-test', onClick: () => void testPush(t('push.test.title'), t('push.test.body')).catch(() => toast(t('push.error'))) }),
+        button(t('push.off'), {
+          kind: 'ghost',
+          focusKey: 'push-off',
+          onClick: async () => {
+            await disablePush(code);
+            toast(t('push.toast.off'));
+            ctx.store.setMeta({});
+          },
+        }),
+      ),
+    );
   }
-  return card(
-    { title: t('notify.title'), sub: t('notify.sub'), id: 'notify' },
-    ctx.data.config.example ? h('p', { class: 'warn-note' }, t('notify.example')) : null,
-    h(
-      'ul',
-      { class: 'notify-list' },
-      h('li', null, icon('info', 18), h('span', null, t('notify.onOpen'))),
-      h('li', null, icon('alerts', 18), h('span', null, status)),
-    ),
+  return line(
+    t('push.intro'),
     h(
       'div',
       { class: 'button-row' },
-      enable,
-      button(t('calendar.button'), { icon: 'months', focusKey: 'calendar-export', onClick: () => void exportCalendar(ctx) }),
+      button(t('push.enable'), {
+        icon: 'alerts',
+        kind: 'primary',
+        focusKey: 'push-enable',
+        onClick: async () => {
+          try {
+            const r = await enablePush(code);
+            toast(r === 'ok' ? t('push.toast.on') : t('push.toast.denied'));
+            if (r === 'ok') void testPush(t('push.test.title'), t('push.test.body')).catch(() => undefined);
+          } catch (e) {
+            toast(`${t('push.error')}${e instanceof Error && e.message ? `: ${e.message}` : ''}`, { duration: 8000 });
+          }
+          ctx.store.setMeta({});
+        },
+      }),
     ),
+  );
+}
+
+/** Cómo avisa la app en este móvil: al abrirla, con la app cerrada y con el calendario. */
+function notifyCard(ctx: Ctx): HTMLElement {
+  return card(
+    { title: t('notify.title'), sub: t('notify.sub'), id: 'notify' },
+    ctx.data.config.example ? h('p', { class: 'warn-note' }, t('notify.example')) : null,
+    h('ul', { class: 'notify-list' }, h('li', null, icon('info', 18), h('span', null, t('notify.onOpen'))), pushBlock(ctx)),
+    h('h3', { class: 'subhead' }, t('calendar.title')),
+    h('div', { class: 'button-row' }, button(t('calendar.button'), { icon: 'months', focusKey: 'calendar-export', onClick: () => void exportCalendar(ctx) })),
     h('p', { class: 'field-hint' }, t('calendar.help')),
     isIOS() ? h('p', { class: 'field-hint' }, t('calendar.helpIOS')) : null,
     h('p', { class: 'field-hint' }, t('calendar.privacy')),

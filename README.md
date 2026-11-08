@@ -37,17 +37,17 @@ Cada concepto tiene un rango de meses (*desde / hasta*), así que una paga extra
 
 ## Avisos de pagos
 
-La app avisa de cada pago no mensual **una semana antes** y **el día de antes**. Sin servidor, cada móvil lo permite de una forma:
+La app avisa de cada pago no mensual **una semana antes** y **el día de antes**:
 
 | Cómo | Dónde funciona | Qué hace |
 | --- | --- | --- |
 | **Al abrir la app** | En todos | Sale una ventana con los pagos de hoy, de mañana y de los próximos 7 días que aún no se habían avisado en ese móvil. |
-| **Notificaciones con la app cerrada** | Android con Chrome o Edge, con la app instalada | En *Avisos → Avisos en el móvil → Activar notificaciones*. El navegador despierta la app más o menos una vez al día (*periodic background sync*) y muestra los avisos que tocan. |
-| **Calendario** | En todos, también iPhone | *Avisos → Añadir pagos al calendario* descarga un archivo `.ics` con un evento por pago y dos alarmas (una semana antes y el día de antes, a las 9:00). El calendario del móvil avisa aunque no se abra la app. Si cambian los pagos, hay que volver a añadirlos. |
+| **Avisos con la app cerrada** | iPhone (iOS 16.4 o posterior, con la app en la pantalla de inicio) y Android, con la sincronización activada | En *Avisos → Activar avisos en este móvil*. Igual que en *Menú familiar*: cada móvil se apunta en Firebase y el proceso [`.github/workflows/avisos.yml`](.github/workflows/avisos.yml) se ejecuta cada hora, mira los pagos sincronizados y envía los avisos (Web Push) desde las 9:00, hora de España. |
+| **Calendario** | En todos | *Avisos → Añadir pagos al calendario* crea un archivo `.ics` con un evento por pago y dos alarmas. En iPhone, el archivo se añade al Calendario abriéndolo desde Mail. |
 
-En iPhone, iOS no deja que una web instalada se despierte sola sin un servidor de notificaciones, así que allí los avisos con la app cerrada llegan por el calendario.
+Para los avisos con la app cerrada hay que poner **una vez** el código de familia en GitHub: *Settings → Secrets and variables → Actions → New repository secret*, nombre `FAMILIA_CODIGO`. Las claves para firmar los avisos son las mismas que usa *Menú familiar* (`/familias/<código>/vapid`); los móviles apuntados están en `finanzas-push` y los avisos ya enviados en `finanzas-avisados`. El repositorio es público, así que el proceso no escribe en sus registros ni conceptos ni importes, solo cuántos avisos envía. El contenido de cada aviso viaja cifrado hasta el móvil (Web Push).
 
-Cada aviso se muestra una vez por móvil (se recuerda por fecha, concepto y tipo, en IndexedDB, sin sincronizarse). Con el ejemplo ficticio no se avisa de nada. La regla está en [`src/calc/reminders.ts`](src/calc/reminders.ts) y el archivo de calendario en [`src/storage/calendar.ts`](src/storage/calendar.ts), los dos con pruebas; el service worker solo lee los avisos que la app deja preparados.
+Cada aviso se muestra una vez (se recuerda por fecha, concepto y tipo). Con el ejemplo ficticio no se avisa de nada. La regla está en [`src/calc/reminders.ts`](src/calc/reminders.ts) (la app) y en [`.github/scripts/avisos.mjs`](.github/scripts/avisos.mjs) (el servicio), las dos con pruebas.
 
 ## Instalarla en el móvil
 
