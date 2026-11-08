@@ -16,6 +16,10 @@ export interface Meta {
   theme?: 'auto' | 'light' | 'dark';
   /** Notificaciones con la app cerrada: activadas y comprobación diaria registrada. */
   notifyBackground?: boolean;
+  /** Ya se ha visto la guía de primeros pasos. */
+  guideSeen?: boolean;
+  /** Mostrar siempre las pestañas Domiciliaciones y Sueldos. */
+  extraTabs?: boolean;
 }
 
 /**

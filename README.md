@@ -37,6 +37,12 @@ En la copia JSON, cada concepto o pago puede llevar además `note` (se ve en una
 
 Cada concepto tiene un rango de meses (*desde / hasta*), así que una paga extra o un gimnasio de seis meses se apuntan una sola vez.
 
+## Primeros pasos y cargar datos
+
+- **Guía**: la primera vez (con el ejemplo) se abre «Cómo funciona», que se puede volver a ver desde *Ajustes → Ver la guía*. La misma guía en PDF, para enviarla al compartir la app: [`guia.pdf`](https://moxetas.github.io/finanzas-familiares/guia.pdf) (en `public/guia.pdf`, solo con datos del ejemplo).
+- **Menos pestañas al empezar**: Domiciliaciones y Sueldos solo salen si se usan, o si se activan en *Ajustes*.
+- **Añadir desde foto, captura o PDF** (en Ajustes, Avisos y Meses): la app copia unas instrucciones; la persona adjunta el documento en su app de IA (ChatGPT, Claude, Gemini… la versión gratis vale), pega las instrucciones y pega en la app la respuesta (un JSON). También vale pegar el texto de un correo o el de una foto: se buscan fecha, importe y concepto. Antes de añadir se revisa todo. La app no envía nada a ningún sitio y no necesita servidor ni claves. Lógica en [`src/storage/ai-import.ts`](src/storage/ai-import.ts), con pruebas.
+
 ## Avisos de pagos
 
 La app avisa de cada pago no mensual **una semana antes** y **el día de antes**:

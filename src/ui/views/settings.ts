@@ -17,6 +17,7 @@ import { syncCard } from '../sync-card';
 import { applyTheme } from '../theme';
 import { toast } from '../toast';
 import { selectField } from '../fields';
+import { openImport } from '../import-ai';
 
 const TYPE_TONE: Record<Item['type'], ChipTone> = { Ingreso: 'income', Gasto: 'expense', Ahorro: 'saving' };
 
@@ -244,6 +245,26 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     'div',
     { class: 'view view-settings' },
     pageHeader(t('settings.title')),
+    card(
+      { title: t('settings.start.title'), id: 'empezar' },
+      h(
+        'div',
+        { class: 'button-row' },
+        button(t('import.button'), { icon: 'upload', kind: 'primary', onClick: () => openImport(ctx) }),
+        button(t('guide.open'), { icon: 'info', onClick: () => ctx.go('#/guia') }),
+      ),
+      h(
+        'div',
+        { class: 'field field-check tabs-toggle' },
+        h('input', {
+          id: 'extra-tabs',
+          type: 'checkbox',
+          checked: meta.extraTabs === true,
+          onchange: (ev: Event) => ctx.store.setMeta({ extraTabs: (ev.target as HTMLInputElement).checked }),
+        }),
+        h('label', { for: 'extra-tabs' }, t('settings.extraTabs')),
+      ),
+    ),
     yearCard,
     accountsCard,
     itemsCard,

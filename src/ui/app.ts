@@ -16,12 +16,13 @@ import { startReminders } from './reminders';
 import { alertsView } from './views/alerts';
 import { domView } from './views/dom';
 import { incomeView } from './views/income';
+import { guideView } from './views/guide';
 import { monthsView } from './views/months';
 import { settingsView } from './views/settings';
 import { summaryView } from './views/summary';
 
 interface Route {
-  name: 'resumen' | 'meses' | 'avisos' | 'dom' | 'sueldos' | 'ajustes';
+  name: 'resumen' | 'meses' | 'avisos' | 'dom' | 'sueldos' | 'ajustes' | 'guia';
   param?: string;
 }
 
@@ -36,7 +37,7 @@ const TABS: { name: Route['name']; label: MessageKey; icon: IconName }[] = [
 
 function parseRoute(hash: string): Route {
   const [name, param] = hash.replace(/^#\/?/, '').split('/');
-  if (name === 'meses' || name === 'avisos' || name === 'dom' || name === 'sueldos' || name === 'ajustes' || name === 'resumen') return { name, param: param || undefined };
+  if (name === 'meses' || name === 'avisos' || name === 'dom' || name === 'sueldos' || name === 'ajustes' || name === 'resumen' || name === 'guia') return { name, param: param || undefined };
   return { name: 'resumen' };
 }
 
@@ -103,6 +104,8 @@ export function mountApp(root: HTMLElement, store: Store): void {
             ? domView(ctx)
           : route.name === 'sueldos'
             ? incomeView(ctx, route.param)
+          : route.name === 'guia'
+            ? guideView(ctx)
           : route.name === 'ajustes'
             ? settingsView(ctx, changed ? route.param : undefined)
             : summaryView(ctx);
@@ -115,11 +118,19 @@ export function mountApp(root: HTMLElement, store: Store): void {
     main.append(view);
     document.getElementById('topbar-year')!.textContent = String(store.state.data.config.year);
 
+    // Domiciliaciones y Sueldos solo salen si se usan (o si se activan en Ajustes): menos pestañas al empezar.
+    const meta = store.state.meta;
+    const cfg = store.state.data.config;
+    const extra: Partial<Record<Route['name'], boolean>> = {
+      dom: meta.extraTabs === true || (store.state.data.domiciliaciones?.groups.length ?? 0) > 0,
+      sueldos: meta.extraTabs === true || (cfg.salaries?.length ?? 0) > 0 || (cfg.btc?.length ?? 0) > 0,
+    };
     for (const [name, a] of tabLinks) {
+      if (name in extra) (a.parentElement as HTMLElement).hidden = !extra[name] && route.name !== name;
       if (name === route.name) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     }
-    document.title = `${t(TABS.find((x) => x.name === route.name)!.label)} · ${t('app.name')}`;
+    document.title = `${t(TABS.find((x) => x.name === route.name)?.label ?? 'guide.title')} · ${t('app.name')}`;
 
     if (changed) {
       if (!(route.name === 'ajustes' && route.param)) window.scrollTo(0, 0);
@@ -141,6 +152,8 @@ export function mountApp(root: HTMLElement, store: Store): void {
   store.sync.subscribe(() => render());
   store.onError(() => toast(t('toast.saveError'), { duration: 8000 }));
   listenInstall(() => render());
+  // La primera vez (con el ejemplo), la guía de primeros pasos.
+  if (!store.state.meta.guideSeen && store.state.data.config.example && !location.hash) location.hash = '#/guia';
   render({ initial: true });
   startReminders(ctx);
 }

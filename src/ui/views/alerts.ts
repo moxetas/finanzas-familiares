@@ -13,6 +13,7 @@ import { icon } from '../icons';
 import { isIOS, isStandalone } from '../install';
 import { disablePush, enablePush, lastServerRun, pushInfo, pushSupported, testPush } from '../push';
 import { toast } from '../toast';
+import { openImport } from '../import-ai';
 
 function when(p: UpcomingPayment): string {
   if (p.inDays === 0) return t('alerts.today');
@@ -143,6 +144,7 @@ export function alertsView(ctx: Ctx): HTMLElement {
     'div',
     { class: 'view view-alerts' },
     pageHeader(t('alerts.title'), t('alerts.sub')),
+    h('div', { class: 'button-row page-actions' }, button(t('import.button'), { icon: 'upload', onClick: () => openImport(ctx) })),
     nothing && config.payments.length === 0
       ? card({}, empty(t('alerts.empty')))
       : [

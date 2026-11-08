@@ -11,6 +11,7 @@ import { h, uid } from '../dom';
 import { editDebt, editEntry, editHistoryCell, editOverride, editStart } from '../forms';
 import { icon } from '../icons';
 import { signButtons } from '../fields';
+import { openImport } from '../import-ai';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
 import { isDebtLabel } from '../../calc/debts';
 import { freeRows, transferRow } from '../extra-rows';
@@ -482,7 +483,12 @@ function realCard(ctx: Ctx, m: MonthResult, ym: string, opts: { planned?: boolea
 function entriesCard(ctx: Ctx, ym: string): HTMLElement {
   const accounts = ctx.data.config.accounts;
   const list = entriesOfMonth(ctx.data.entries, ym);
-  const add = button(t('entries.add'), { icon: 'plus', kind: 'primary', focusKey: 'add-entry', onClick: () => editEntry(ctx, ym, null) });
+  const add = h(
+    'div',
+    { class: 'button-row card-buttons' },
+    button(t('entries.add'), { icon: 'plus', kind: 'primary', focusKey: 'add-entry', onClick: () => editEntry(ctx, ym, null) }),
+    button(t('import.short'), { icon: 'upload', focusKey: 'import-entry', onClick: () => openImport(ctx) }),
+  );
   return card(
     { title: t('entries.title'), sub: t('entries.sub'), id: 'entries', actions: add },
     list.length === 0
