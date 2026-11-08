@@ -101,6 +101,8 @@ export function debtsAt(data: AppData, month: number): { name: string; account: 
   return debtList(data).map((debt) => {
     let remaining = opening(data, debt);
     for (let m = 1; m < month; m++) remaining -= paidIn(data, debt, m);
-    return { name: debt.name, account: debt.account, remaining: Math.max(0, round2(remaining)), note: debt.note ?? '' };
+    // Es lo que queda al empezar el mes: un nombre «… al acabar el mes» confundiría.
+    const name = debt.name.replace(/\s*al acabar el mes/i, '').trim() || debt.name;
+    return { name, account: debt.account, remaining: Math.max(0, round2(remaining)), note: debt.note ?? '' };
   });
 }
