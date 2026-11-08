@@ -354,7 +354,9 @@ export const es = {
   'backup.error.read': 'No se ha podido leer el archivo.',
 
   'loading': 'Cargando…',
-  'error.fatal': 'Algo ha fallado al abrir la app. Recarga la página.',
+  'error.fatal': 'La app no ha podido abrir tus datos. No se han perdido.',
+  'error.fatal.hint': 'Toca «Volver a cargar». Si sigue igual, cierra la app del todo (deslízala hacia arriba en la lista de apps abiertas) y ábrela otra vez.',
+  'error.reload': 'Volver a cargar',
 } as const;
 
 export type MessageKey = keyof typeof es;

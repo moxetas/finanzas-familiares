@@ -1,6 +1,7 @@
 import './styles/fonts.css';
 import './styles/app.css';
 import { setLocale, t } from './i18n';
+import { h } from './ui/dom';
 import { mountApp } from './ui/app';
 import { Store } from './ui/store';
 import { applyTheme } from './ui/theme';
@@ -14,8 +15,16 @@ async function start(): Promise<void> {
     applyTheme(store.state.meta.theme ?? 'auto');
     mountApp(root, store);
   } catch (error) {
-    root.textContent = t('error.fatal');
     console.error(error);
+    root.replaceChildren(
+      h(
+        'div',
+        { class: 'boot' },
+        h('p', null, t('error.fatal')),
+        h('p', { class: 'boot-hint' }, t('error.fatal.hint')),
+        h('button', { type: 'button', class: 'btn btn-primary', onclick: () => location.reload() }, t('error.reload')),
+      ),
+    );
   }
   if (import.meta.env.PROD) registerServiceWorker();
 }

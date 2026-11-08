@@ -68,19 +68,71 @@ function req<T>(r: IDBRequest<T>): Promise<T> {
   });
 }
 
-function openDB(): Promise<IDBDatabase> {
+/** IndexedDB no ha respondido a tiempo (no es que no exista). */
+export class StorageTimeoutError extends Error {
+  constructor() {
+    super('IndexedDB no responde');
+    this.name = 'StorageTimeoutError';
+  }
+}
+
+/**
+ * Safari en iPhone a veces deja colgada la primera apertura de IndexedDB tras
+ * abrir la app. Preguntar por `indexedDB.databases()` hasta que responda la
+ * «despierta» (es el arreglo habitual para este fallo de WebKit).
+ */
+function wakeIndexedDB(): Promise<void> {
+  const idb = indexedDB as IDBFactory & { databases?: () => Promise<unknown> };
+  if (typeof idb.databases !== 'function') return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearInterval(timer);
+      clearTimeout(limit);
+      resolve();
+    };
+    const poke = () => {
+      idb.databases!().then(finish, finish);
+    };
+    const timer = setInterval(poke, 100);
+    const limit = setTimeout(finish, 2000);
+    poke();
+  });
+}
+
+async function openDB(attempt = 1): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') throw new Error('IndexedDB no disponible');
+  await wakeIndexedDB();
+  try {
+    return await openOnce();
+  } catch (e) {
+    // Si se ha quedado colgada, se intenta otra vez antes de rendirse.
+    if (e instanceof StorageTimeoutError && attempt < 3) return openDB(attempt + 1);
+    throw e;
+  }
+}
+
+function openOnce(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') {
-      reject(new Error('IndexedDB no disponible'));
-      return;
-    }
+    const timer = setTimeout(() => reject(new StorageTimeoutError()), 4000);
     const open = indexedDB.open(DB_NAME, 1);
+    open.onsuccess = () => {
+      clearTimeout(timer);
+      resolve(open.result);
+    };
+    open.onerror = () => {
+      clearTimeout(timer);
+      reject(open.error);
+    };
     open.onupgradeneeded = () => {
       if (!open.result.objectStoreNames.contains(STORE)) open.result.createObjectStore(STORE);
     };
-    open.onsuccess = () => resolve(open.result);
-    open.onerror = () => reject(open.error);
-    open.onblocked = () => reject(new Error('IndexedDB bloqueada'));
+    open.onblocked = () => {
+      clearTimeout(timer);
+      reject(new Error('IndexedDB bloqueada'));
+    };
   });
 }
 
@@ -235,7 +287,10 @@ export async function openLocalStore(): Promise<LocalStore> {
       localStorage.removeItem(LS_KEY);
     }
     return store;
-  } catch {
+  } catch (e) {
+    // Si IndexedDB existe pero no responde, NO se cambia a otro almacenamiento:
+    // se vería la app vacía (y podría sincronizarse así). Mejor pedir reabrir.
+    if (e instanceof StorageTimeoutError) throw e;
     if (localStorageWorks()) return new LSStore();
     return new MemoryStore();
   }
