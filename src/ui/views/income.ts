@@ -1,6 +1,6 @@
 /** Pestaña Sueldos: sueldos de cada persona con su media, y compras de BTC. */
 
-import { btcRows, contractSummary, salaryYears } from '../../calc/income';
+import { btcRows, contractSummary, salaryYears, withPlannedYear } from '../../calc/income';
 import type { SalaryPerson } from '../../calc/types';
 import { fmtDate, fmtMoney, fmtNumber, fmtYearMonth, localeTag, monthName, t } from '../../i18n';
 import { button, card, chip, empty, kpi, money, pageHeader } from '../components';
@@ -27,10 +27,12 @@ export function incomeView(ctx: Ctx, param: string | undefined): HTMLElement {
 }
 
 function personBody(ctx: Ctx, pi: number): HTMLElement[] {
-  const person = ctx.data.config.salaries![pi]!;
+  const stored = ctx.data.config.salaries![pi]!;
+  // El año planificado se toma de la pestaña Meses (concepto «SUELDO <nombre>»).
+  const { person, autoAfter } = withPlannedYear(ctx.data, stored);
   const until = Math.max(new Date().getFullYear(), ctx.data.config.year);
-  const years = salaryYears(person, until).reverse();
-  const contracts = contractSummary(person);
+  const years = salaryYears(person, until, autoAfter).reverse();
+  const contracts = contractSummary(stored);
   const add = button(t('income.addMonth'), { icon: 'plus', kind: 'primary', focusKey: `inc-add-${pi}`, onClick: () => editSalary(ctx, pi, null) });
 
   const contractsCard = card(

@@ -377,7 +377,8 @@ function lineRow(ctx: Ctx, line: Line, month: number, several: boolean, hasNotes
             'data-focus-key': `cell-${line.kind}-${line.index}-${c}`,
             onclick: () => editOverride(ctx, line, month),
           },
-          fmtNumber(shown, { sign: true }),
+          // Importe 0 (p. ej. la tarjeta, que se escribe a mano cada mes): celda vacía.
+          line.amount === 0 ? '–' : fmtNumber(shown, { sign: true }),
         ),
       );
     }),

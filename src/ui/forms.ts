@@ -331,9 +331,11 @@ export function editOverride(ctx: Ctx, line: Line, month: number): void {
       onClick: () => {
         const r = amount.read();
         if (!r.ok || r.value === null) return false;
-        // Si vuelve a ser el importe normal, no hace falta guardar el cambio.
-        apply(r.value === line.base ? null : r.value);
-        if (r.value !== line.base) toast(t('override.saved', { month: fmtYearMonth(ym) }));
+        // Si vuelve a ser el importe normal, no hace falta guardar el cambio. Salvo en un
+        // sueldo: lo escrito a mano es lo cobrado (y así sale como confirmado en Sueldos).
+        const keep = line.kind === 'item' && line.type === 'Ingreso' && /^sueldo /i.test(line.name.trim());
+        apply(r.value === line.base && !keep ? null : r.value);
+        if (r.value !== line.base || keep) toast(t('override.saved', { month: fmtYearMonth(ym) }));
       },
     },
   );

@@ -8,8 +8,10 @@
  * media llevo Y con este contrato».
  */
 
+import { norm } from './debts';
+import { itemOverrideKey, monthKey } from './keys';
 import { round2 } from './money';
-import type { BtcTrade, SalaryPerson } from './types';
+import type { AppData, BtcTrade, SalaryPerson } from './types';
 
 export interface SalaryRow {
   ym: string;
@@ -49,11 +51,12 @@ export function autoEstimate(p: SalaryPerson): number | null {
 }
 
 /** Tabla de sueldos por año, desde el primer mes cobrado hasta diciembre de `untilYear`. */
-export function salaryYears(p: SalaryPerson, untilYear: number): SalaryYear[] {
+export function salaryYears(p: SalaryPerson, untilYear: number, autoAfter?: string): SalaryYear[] {
   const keys = Object.keys(p.months).sort();
   if (keys.length === 0) return [];
   const first = keys[0]!;
-  const last = keys[keys.length - 1]!;
+  // Los huecos anteriores a este mes no se rellenan con la media automática.
+  const last = autoAfter ?? keys[keys.length - 1]!;
   const auto = autoEstimate(p);
   const firstYear = Number(first.slice(0, 4));
   const endYear = Math.max(untilYear, Number(last.slice(0, 4)));
@@ -70,8 +73,9 @@ export function salaryYears(p: SalaryPerson, untilYear: number): SalaryYear[] {
       let amount: number | null = confirmed ?? null;
       let estimated = false;
       if (amount === null) {
-        if (ym < last) continue; // un hueco en el pasado no se rellena
-        amount = p.estimates?.[ym] ?? auto;
+        const manual = p.estimates?.[ym];
+        if (manual === undefined && ym < last) continue; // un hueco en el pasado no se rellena
+        amount = manual ?? auto;
         estimated = true;
       }
       if (amount === null) continue;
@@ -133,4 +137,35 @@ export function btcRows(trades: readonly BtcTrade[]): BtcRow[] {
       totalPaid = round2(totalPaid + t.paid);
       return { ...t, total, totalPaid, avgPrice: total > 0 ? round2(totalPaid / total) : null };
     });
+}
+
+/** Concepto del año planificado con el sueldo de esta persona («SUELDO ALBERTO»), o -1. */
+export function salaryItemIndex(data: AppData, person: SalaryPerson): number {
+  const want = norm(`sueldo ${person.name}`);
+  return data.config.items.findIndex((it) => it.type === 'Ingreso' && norm(it.name) === want);
+}
+
+/**
+ * Los meses del año planificado salen de la pestaña Meses: lo que se escribe allí en
+ * el sueldo de ese mes cuenta como cobrado; el resto, como estimado (el importe del
+ * concepto). Devuelve la persona con esos meses y desde qué mes se estima solo.
+ */
+export function withPlannedYear(data: AppData, person: SalaryPerson): { person: SalaryPerson; autoAfter: string | undefined } {
+  const idx = salaryItemIndex(data, person);
+  const keys = Object.keys(person.months).sort();
+  const autoAfter = keys[keys.length - 1];
+  if (idx < 0) return { person, autoAfter };
+  const item = data.config.items[idx]!;
+  const months = { ...person.months };
+  const estimates = { ...(person.estimates ?? {}) };
+  const { year } = data.config;
+  for (let m = item.from_month; m <= item.to_month; m++) {
+    const ym = monthKey(year, m);
+    const o = data.overrides[itemOverrideKey(ym, idx)];
+    delete months[ym];
+    delete estimates[ym];
+    if (typeof o === 'number') months[ym] = o;
+    else estimates[ym] = item.amount;
+  }
+  return { person: { ...person, months, estimates }, autoAfter };
 }

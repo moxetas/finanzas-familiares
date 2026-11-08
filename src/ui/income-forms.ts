@@ -1,6 +1,8 @@
 /** Formularios de la pestaña Sueldos: sueldos, contratos, personas y operaciones de BTC. */
 
+import { salaryItemIndex } from '../calc/income';
 import { round2 } from '../calc/money';
+import { setItemOverride } from '../calc/mutations';
 import type { BtcTrade, SalaryPerson } from '../calc/types';
 import { fmtYearMonth, t } from '../i18n';
 import { LIMITS } from '../storage/sanitize';
@@ -65,6 +67,11 @@ export function editSalary(ctx: Ctx, pi: number, ym: string | null, current?: { 
       label: t('action.delete'),
       kind: 'danger',
       onClick: () => {
+        const idx = salaryItemIndex(ctx.data, person);
+        if (idx >= 0 && ym!.startsWith(`${ctx.data.config.year}-`)) {
+          ctx.commit(setItemOverride(ctx.data, ym!, idx, null));
+          return;
+        }
         const p = clone(person);
         delete p.months[ym!];
         delete p.estimates![ym!];
@@ -83,6 +90,12 @@ export function editSalary(ctx: Ctx, pi: number, ym: string | null, current?: { 
         const m = month ? month.read() : ({ ok: true, value: ym! } as Result<string>);
         const v = readAll({ amount, confirmed });
         if (!m.ok || !v || v.amount === null) return false;
+        // Mes del año planificado: se guarda en la pestaña Meses (el sueldo de ese mes).
+        const idx = salaryItemIndex(ctx.data, person);
+        if (idx >= 0 && m.value.startsWith(`${ctx.data.config.year}-`)) {
+          ctx.commit(setItemOverride(ctx.data, m.value, idx, v.confirmed ? v.amount : null));
+          return;
+        }
         const p = clone(person);
         delete p.months[m.value];
         delete p.estimates![m.value];

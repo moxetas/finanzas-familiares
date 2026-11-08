@@ -78,3 +78,23 @@ describe('anexo y copia', () => {
     expect(d.config.btc![0]!.qty).toBe(0.001);
   });
 });
+
+describe('sueldos del año planificado desde la pestaña Meses', () => {
+  it('lo escrito en Meses es cobrado; el resto, estimado con el importe del concepto', async () => {
+    const { blankData, withPlannedYear, salaryYears: years } = await import('../src/calc');
+    const base = blankData(2027, 'Banco');
+    const data = {
+      ...base,
+      config: { ...base.config, items: [{ name: 'SUELDO PERSONA', type: 'Ingreso' as const, amount: 3000, account: 0, to: -1, from_month: 1, to_month: 12 }] },
+      overrides: { '2027-01_i0': 3123.45 },
+    };
+    const p = { name: 'Persona', contracts: [], months: { '2026-11': 2900 } };
+    const { person, autoAfter } = withPlannedYear(data, p);
+    const y = years(person, 2027, autoAfter);
+    const y27 = y.find((x) => x.year === 2027)!;
+    expect(y27.rows[0]).toMatchObject({ ym: '2027-01', amount: 3123.45, estimated: false });
+    expect(y27.rows[1]).toMatchObject({ ym: '2027-02', amount: 3000, estimated: true });
+    // Diciembre de 2026 sigue saliendo como estimado aunque enero de 2027 ya esté cobrado.
+    expect(y.find((x) => x.year === 2026)!.rows.map((r) => r.ym)).toEqual(['2026-11', '2026-12']);
+  });
+});
