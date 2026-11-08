@@ -436,6 +436,9 @@ export const es = {
   'error.fatal': 'La app no ha podido abrir tus datos. No se han perdido.',
   'error.fatal.hint': 'Toca «Volver a cargar». Si sigue igual, cierra la app del todo (deslízala hacia arriba en la lista de apps abiertas) y ábrela otra vez.',
   'error.reload': 'Volver a cargar',
+  'error.repair': 'Reparar la app',
+  'error.copy': 'Copiar diagnóstico',
+  'cloudOnly.text': 'La memoria del móvil no responde. Estás viendo los datos de la nube y lo que cambies se guarda allí. Cierra la app del todo y vuelve a abrirla más tarde.',
 } as const;
 
 export type MessageKey = keyof typeof es;

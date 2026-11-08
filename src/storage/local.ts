@@ -109,14 +109,14 @@ async function openDB(attempt = 1): Promise<IDBDatabase> {
     return await openOnce();
   } catch (e) {
     // Si se ha quedado colgada, se intenta otra vez antes de rendirse.
-    if (e instanceof StorageTimeoutError && attempt < 3) return openDB(attempt + 1);
+    if (e instanceof StorageTimeoutError && attempt < 2) return openDB(attempt + 1);
     throw e;
   }
 }
 
 function openOnce(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new StorageTimeoutError()), 4000);
+    const timer = setTimeout(() => reject(new StorageTimeoutError()), 3000);
     const open = indexedDB.open(DB_NAME, 1);
     open.onsuccess = () => {
       clearTimeout(timer);
@@ -238,6 +238,28 @@ class LSStore implements LocalStore {
 
   /** El service worker no puede leer localStorage: aquí no hay avisos con la app cerrada. */
   async saveReminders(): Promise<void> {}
+}
+
+/** Espera una promesa como mucho `ms`; si no llega, `StorageTimeoutError`. */
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new StorageTimeoutError()), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+/** Almacenamiento en memoria (cuando el del móvil no responde). */
+export function memoryStore(): LocalStore {
+  return new MemoryStore();
 }
 
 /** Último recurso: funciona, pero se pierde al cerrar la app. */

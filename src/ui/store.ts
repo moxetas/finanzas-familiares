@@ -5,7 +5,8 @@
  */
 
 import type { AppData } from '../calc/types';
-import { openLocalStore, requestPersistence, type LocalStore, type Meta, type StorageKind } from '../storage/local';
+import { memoryStore, openLocalStore, requestPersistence, StorageTimeoutError, withTimeout, type LocalStore, type Meta, type StorageKind, type Stored } from '../storage/local';
+import { blankData } from '../calc/mutations';
 import { sanitizeData } from '../storage/sanitize';
 import { exampleData } from '../storage/example';
 import { todayISO } from '../calc/keys';
@@ -33,6 +34,8 @@ export class Store {
   private channel: BroadcastChannel | null = null;
   private askedPersistence = false;
   readonly sync: Sync;
+  /** El almacenamiento del móvil no responde: datos de la nube, solo en memoria. */
+  cloudOnly = false;
 
   private constructor(
     private local: LocalStore,
@@ -52,19 +55,40 @@ export class Store {
 
   /** Abre el almacenamiento y carga los datos; la primera vez, el ejemplo. */
   static async open(): Promise<Store> {
-    const local = await openLocalStore();
-    const stored = await local.load().catch(() => null);
+    let local: LocalStore;
+    let stored: Stored | null;
+    // Si el almacenamiento del móvil no responde (pasa a veces en iPhone) y hay
+    // sincronización, la app arranca con los datos de la nube en memoria.
+    let cloudOnly = false;
+    try {
+      local = await openLocalStore();
+      stored = await withTimeout(local.load(), 6000).catch((e: unknown) => {
+        if (e instanceof StorageTimeoutError) throw e;
+        return null;
+      });
+    } catch (e) {
+      if (!(e instanceof StorageTimeoutError) || !Sync.savedCode()) throw e;
+      local = memoryStore();
+      stored = null;
+      cloudOnly = true;
+    }
     const year = new Date().getFullYear();
     let data: AppData;
     let meta: Meta = {};
     if (stored) {
       data = sanitizeData(stored.data, year, t('account.defaultName'));
       meta = stored.meta;
+    } else if (cloudOnly) {
+      data = blankData(year, t('account.defaultName'));
     } else {
       data = exampleData(year, todayISO());
     }
     const store = new Store(local, { data, meta, storage: local.kind, persisted: false });
-    if (!stored) await store.persist();
+    if (cloudOnly) {
+      store.cloudOnly = true;
+      store.sync.memoryMode();
+      store.sync.preferCloud();
+    } else if (!stored) await store.persist();
     else store.saveReminders();
     store.askPersistence();
     store.sync.start();

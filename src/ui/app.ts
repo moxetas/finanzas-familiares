@@ -110,6 +110,7 @@ export function mountApp(root: HTMLElement, store: Store): void {
     clear(banner);
     const b = exampleBanner(ctx);
     if (b) banner.append(b);
+    if (store.cloudOnly) banner.append(h('aside', { class: 'notice cloud-only' }, h('p', null, t('cloudOnly.text'))));
     clear(main);
     main.append(view);
     document.getElementById('topbar-year')!.textContent = String(store.state.data.config.year);

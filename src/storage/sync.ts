@@ -168,6 +168,36 @@ export class Sync {
     }
   }
 
+  /** Código guardado en este móvil (sin abrir nada). */
+  static savedCode(): string | null {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null') as Info | null;
+      return saved && typeof saved.code === 'string' ? saved.code : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * La próxima vez que se traigan los datos, mandan los de la nube (no se envía nada
+   * de este móvil). Se usa cuando el almacenamiento del móvil no responde y la app
+   * arranca vacía, y la vez siguiente que arranca con él (porque puede estar atrasado).
+   */
+  private cloudWins = false;
+  preferCloud(): void {
+    this.cloudWins = true;
+    try {
+      localStorage.setItem(`${LS_KEY}:nube`, '1');
+    } catch {
+      /* nada */
+    }
+  }
+  private keepCloudFlag = false;
+  /** En modo «solo nube» el aviso se queda para el siguiente arranque normal. */
+  memoryMode(): void {
+    this.keepCloudFlag = true;
+  }
+
   get code(): string | null {
     return this.info?.code ?? null;
   }
@@ -255,6 +285,11 @@ export class Sync {
   /** Arranca la sincronización si ya estaba activada en este móvil. */
   start(): void {
     if (!this.info) return;
+    try {
+      if (localStorage.getItem(`${LS_KEY}:nube`)) this.cloudWins = true;
+    } catch {
+      /* nada */
+    }
     this.setStatus('connecting');
     void this.pull().then(() => this.open());
     window.addEventListener('online', () => this.kick());
@@ -365,8 +400,12 @@ export class Sync {
       const info = this.info;
       if (!info) return;
       try {
+        // Mandan los datos de la nube: lo de este móvil no cuenta como cambios a enviar.
+        const cloudFirst = this.cloudWins;
+        if (cloudFirst) info.base = flatten(this.host.getData());
         if (info.v !== 2) {
           await this.migrate(info);
+          if (cloudFirst) this.cloudDone();
           this.setStatus('online');
           this.lastSync = Date.now();
           return;
@@ -374,6 +413,7 @@ export class Sync {
         const remote = await this.fetchRemote(info.code);
         if (this.info !== info) return;
         void this.cleanOld(info.code);
+        if (cloudFirst) this.cloudDone();
         const cur = flatten(this.host.getData());
         const merged = mergeFlat(info.base, remote, cur);
         if (Object.keys(diffFlat(cur, merged)).length > 0) {
@@ -394,6 +434,16 @@ export class Sync {
       }
     });
     return this.busy;
+  }
+
+  private cloudDone(): void {
+    this.cloudWins = false;
+    if (this.keepCloudFlag) return;
+    try {
+      localStorage.removeItem(`${LS_KEY}:nube`);
+    } catch {
+      /* nada */
+    }
   }
 
   private scheduleRetry(): void {
