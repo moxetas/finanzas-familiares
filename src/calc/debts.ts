@@ -97,12 +97,24 @@ function paidIn(data: AppData, debt: Debt, month: number): number {
 }
 
 /** Lo que queda de cada deuda al empezar el mes `month` del año planificado. */
-export function debtsAt(data: AppData, month: number): { name: string; account: number; remaining: number; note: string }[] {
-  return debtList(data).map((debt) => {
+/** Deuda escrita a mano al empezar un mes: `"AAAA-MM_d<deuda>"`. */
+export const debtOverrideKey = (ym: string, index: number) => `${ym}_d${index}`;
+
+export function debtsAt(data: AppData, month: number): { name: string; account: number; remaining: number; note: string; index: number; manual: boolean }[] {
+  return debtList(data).map((debt, index) => {
     let remaining = opening(data, debt);
-    for (let m = 1; m < month; m++) remaining -= paidIn(data, debt, m);
+    let manual = false;
+    for (let m = 1; m <= month; m++) {
+      // Si se escribió a mano la deuda de un mes, se sigue desde esa cifra.
+      const o = data.overrides[debtOverrideKey(monthKey(data.config.year, m), index)];
+      if (typeof o === 'number') {
+        remaining = Math.abs(o);
+        manual = m === month;
+      }
+      if (m < month) remaining -= paidIn(data, debt, m);
+    }
     // Es lo que queda al empezar el mes: un nombre «… al acabar el mes» confundiría.
     const name = debt.name.replace(/\s*al acabar el mes/i, '').trim() || debt.name;
-    return { name, account: debt.account, remaining: Math.max(0, round2(remaining)), note: debt.note ?? '' };
+    return { name, account: debt.account, remaining: Math.max(0, round2(remaining)), note: debt.note ?? '', index, manual };
   });
 }

@@ -113,7 +113,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     payments.push(pay);
   }
 
-  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+|f[0-2]_c\d+|t_c\d+)$/, (key) => {
+  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+|f[0-2]_c\d+|t_c\d+|d\d+)$/, (key) => {
     const m = /_([ip])(\d+)$/.exec(key);
     if (!m) return true; // cifra de un mes de `history`, fila libre o traspaso
     const [, kind, idx] = m;

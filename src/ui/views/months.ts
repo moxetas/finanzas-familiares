@@ -8,7 +8,7 @@ import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, typ
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
 import { h, uid } from '../dom';
-import { editEntry, editHistoryCell, editOverride } from '../forms';
+import { editDebt, editEntry, editHistoryCell, editOverride, editStart } from '../forms';
 import { icon } from '../icons';
 import { signButtons } from '../fields';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
@@ -256,7 +256,20 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
         h(
           'td',
           { class: 'n' },
-          a.spent ? null : money(m.start[c] ?? 0, { plain: true }),
+          // Tocar el saldo inicial lo cambia: es el saldo real con el que acabó el mes anterior.
+          a.spent
+            ? null
+            : h(
+                'button',
+                {
+                  type: 'button',
+                  class: `cell-btn${(m.start[c] ?? 0) < 0 ? ' neg' : ''}${m.startSource[c] === 'real' ? ' is-changed' : ''}`,
+                  'data-focus-key': `start-${c}`,
+                  'aria-label': `${t('action.edit')} ${t('months.row.start')} · ${a.name}`,
+                  onclick: () => editStart(ctx, month, c, m.start[c] ?? 0, m.startSource[c] === 'real'),
+                },
+                fmtNumber(m.start[c] ?? 0),
+              ),
           !a.spent && m.startSource[c] === 'real' ? h('span', { class: 'mark-real', title: t('months.row.start.real', { month: monthName(month === 1 ? 12 : month - 1) }) }, ` · ${t('chip.real')}`) : null,
         ),
       ),
@@ -272,7 +285,25 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
         'tr',
         { class: 'row-sum row-debt' },
         h('th', { scope: 'row' }, debt.name, h('span', { class: 'debt-note' }, t('months.debt.info'))),
-        accounts.map((_, c) => (c === debt.account ? h('td', { class: `n${debt.remaining > 0 ? ' neg' : ''}` }, debt.remaining > 0 ? `−${fmtNumber(debt.remaining)}` : '–') : h('td', { class: 'n' }))),
+        accounts.map((_, c) =>
+          c === debt.account
+            ? h(
+                'td',
+                { class: 'n' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    class: `cell-btn${debt.remaining > 0 ? ' neg' : ''}${debt.manual ? ' is-changed' : ''}`,
+                    'data-focus-key': `debt-${debt.index}`,
+                    'aria-label': `${t('action.edit')} ${debt.name}`,
+                    onclick: () => editDebt(ctx, month, debt.index, debt.name, debt.remaining, debt.manual),
+                  },
+                  debt.remaining > 0 ? `−${fmtNumber(debt.remaining)}` : '–',
+                ),
+              )
+            : h('td', { class: 'n' }),
+        ),
         several ? h('td', { class: 'n' }) : null,
         noteCell(debt.note),
       ),

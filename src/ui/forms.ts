@@ -18,6 +18,7 @@ import {
   setHistoryCell,
   setItemOverride,
   setPaymentOverride,
+  setRealBalance,
   updateAccount,
   updateEntry,
   updateItem,
@@ -476,4 +477,59 @@ export function editFreeLabel(ctx: Ctx, ym: string, slot: number, current: strin
       },
     ],
   });
+}
+
+// ── Saldo inicial y deuda de un mes ─────────────────────────────────────────
+
+/** Saldo con el que empieza un mes: se guarda como saldo real a fin del mes anterior. */
+export function editStart(ctx: Ctx, month: number, account: number, current: number, isReal: boolean): void {
+  const { year } = ctx.data.config;
+  const prev = month === 1 ? monthKey(year - 1, 12) : monthKey(year, month - 1);
+  const name = ctx.data.config.accounts[account]?.name ?? '';
+  const amount = amountField({ label: t('field.amount'), value: current, allowNegative: true, hint: t('start.hint', { month: fmtYearMonth(prev) }) });
+  const actions: DialogAction[] = [];
+  if (isReal) actions.push({ label: t('action.reset'), kind: 'danger', onClick: () => ctx.commit(setRealBalance(ctx.data, prev, account, null)) });
+  actions.push(
+    { label: t('action.cancel') },
+    {
+      label: t('action.save'),
+      submit: true,
+      onClick: () => {
+        const r = amount.read();
+        if (!r.ok || r.value === null) return false;
+        ctx.commit(setRealBalance(ctx.data, prev, account, r.value));
+      },
+    },
+  );
+  openDialog({ title: `${t('months.row.start')} · ${name} · ${fmtYearMonth(monthKey(year, month))}`, content: [amount.el], actions });
+  amount.input.select();
+}
+
+/** Deuda al empezar un mes, escrita a mano: los meses siguientes siguen desde ella. */
+export function editDebt(ctx: Ctx, month: number, index: number, name: string, current: number, manual: boolean): void {
+  const ym = monthKey(ctx.data.config.year, month);
+  const key = `${ym}_d${index}`;
+  const amount = amountField({ label: t('field.amount'), value: current, hint: t('debt.hint') });
+  const set = (v: number | null) => {
+    const overrides = { ...ctx.data.overrides };
+    if (v === null) delete overrides[key];
+    else overrides[key] = Math.abs(v);
+    ctx.commit({ ...ctx.data, overrides });
+  };
+  const actions: DialogAction[] = [];
+  if (manual) actions.push({ label: t('debt.auto'), kind: 'danger', onClick: () => set(null) });
+  actions.push(
+    { label: t('action.cancel') },
+    {
+      label: t('action.save'),
+      submit: true,
+      onClick: () => {
+        const r = amount.read();
+        if (!r.ok || r.value === null) return false;
+        set(r.value);
+      },
+    },
+  );
+  openDialog({ title: `${name} · ${fmtYearMonth(ym)}`, content: [amount.el], actions });
+  amount.input.select();
 }

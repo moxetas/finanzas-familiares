@@ -86,7 +86,7 @@ export interface MonthResult {
   /** Suma de los saldos de cierre de todas las cuentas. */
   totalClosing: number;
   /** Deudas que quedan por pagar al acabar el mes. */
-  debts: { name: string; account: number; remaining: number; note: string }[];
+  debts: { name: string; account: number; remaining: number; note: string; index: number; manual: boolean }[];
   /** Filas libres y traspaso del mes (ya sumados en `delta`). */
   extras: MonthExtras;
 }
