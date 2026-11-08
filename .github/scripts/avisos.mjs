@@ -50,7 +50,7 @@ export async function descifrar(raw, code) {
 
 /** Huella de un aviso (para no guardar conceptos ni fechas en claro). */
 async function huella(code, key) {
-  const d = await crypto.subtle.digest('SHA-256', enc.encode(`${code}|${key}`));
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(`v2|${code}|${key}`));
   return Buffer.from(d).subarray(0, 12).toString('hex');
 }
 /** No se avisa antes de esta hora (hora de España). */
@@ -167,7 +167,10 @@ export async function run({ code, ahora = Date.now(), send, db = firebase }) {
       }
     }
   }
-  const cambios = { 'finanzas-avisados': nuevos, 'finanzas-servidor': { ultimaVez: ahora, enviados, moviles: subs.length - caducados.size } };
+  // Si no hay ningún móvil apuntado (o no se pudo avisar a ninguno), no se dan por
+  // enviados: así llegan cuando alguien active los avisos.
+  const guardados = enviados > 0 ? nuevos : (avisados || {});
+  const cambios = { 'finanzas-avisados': guardados, 'finanzas-servidor': { ultimaVez: ahora, enviados, moviles: subs.length - caducados.size } };
   for (const id of caducados) cambios[`finanzas-push/${id}`] = null;
   await db(code, '', 'PATCH', cambios);
   return { enviar, enviados, caducados: [...caducados] };

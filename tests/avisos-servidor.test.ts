@@ -11,6 +11,15 @@ const finanzas = (payments: unknown[], ov: Record<string, number> = {}, example 
 const AHORA = Date.UTC(2026, 10, 10, 9, 0);
 
 describe('servicio de avisos', () => {
+  it('sin móviles apuntados no da los avisos por enviados', async () => {
+    const store: Record<string, unknown> = { finanzas: finanzas([{ date: '2026-11-11', concept: 'Seguro', amount: 1, account: 0, estimated: false }]) };
+    let patch: Record<string, unknown> = {};
+    const db = async (_c: string, path: string, method = 'GET', body?: Record<string, unknown>) => (method === 'PATCH' ? ((patch = body!), {}) : (store[path] ?? null));
+    const r = await run({ code: 'c', ahora: AHORA, send: async () => undefined, db });
+    expect(r.enviar).toHaveLength(1);
+    expect(patch['finanzas-avisados']).toEqual({});
+  });
+
   it('hora de España', () => {
     expect(ahoraEnZona(AHORA)).toEqual({ hoy: '2026-11-10', hora: 10 });
     expect(ahoraEnZona(Date.UTC(2026, 10, 10, 23, 30)).hoy).toBe('2026-11-11');
