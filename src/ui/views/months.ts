@@ -4,6 +4,7 @@ import { computeYear, entriesOfMonth, type Line, type LineType, type MonthResult
 import { historyCellKey, monthKey, todayISO } from '../../calc/keys';
 import { parseAmount, sum } from '../../calc/money';
 import { setRealBalance } from '../../calc/mutations';
+import { accountOrder, inOrder } from '../../calc/order';
 import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, type MessageKey } from '../../i18n';
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
@@ -236,6 +237,8 @@ function groupOf(line: Line): LineType | 'entry' {
 
 function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   const accounts = ctx.data.config.accounts;
+  // Columnas en el orden elegido en Ajustes; `c` sigue siendo el índice de la cuenta.
+  const order = accountOrder(ctx.data.config);
   const several = accounts.length > 1;
   const cols = accounts.length + (several ? 1 : 0);
   const hasNotes = m.lines.some((l) => l.note !== '' && l.kind !== 'entry');
@@ -253,7 +256,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
       'tr',
       { class: 'row-sum row-start' },
       h('th', { scope: 'row' }, t('months.row.start')),
-      accounts.map((a, c) =>
+      inOrder(accounts, order).map(({ item: a, index: c }) =>
         h(
           'td',
           { class: 'n' },
@@ -286,7 +289,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
         'tr',
         { class: 'row-sum row-debt' },
         h('th', { scope: 'row' }, debt.name, h('span', { class: 'debt-note' }, t('months.debt.info'))),
-        accounts.map((_, c) =>
+        order.map((c) =>
           c === debt.account
             ? h(
                 'td',
@@ -311,7 +314,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     );
   }
 
-  const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes };
+  const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes, order };
   let freePlaced = false;
   const sectionRows = (label: string, lines: Line[]) => {
     if (lines.length === 0) return;
@@ -321,7 +324,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
         rows.push(...freeRows(ctx, m.extras, extraOpts));
         freePlaced = true;
       }
-      rows.push(lineRow(ctx, line, month, several, hasNotes));
+      rows.push(lineRow(ctx, line, month, order, several, hasNotes));
     }
   };
 
@@ -342,12 +345,12 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   rows.push(transferRow(ctx, m.extras, extraOpts));
 
   rows.push(
-    h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), m.delta.map((v) => numCell(v)), several ? numCell(sum(m.delta)) : null, noteCell()),
+    h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), order.map((c) => numCell(m.delta[c] ?? 0)), several ? numCell(sum(m.delta)) : null, noteCell()),
     h(
       'tr',
       { class: 'row-sum row-end' },
       h('th', { scope: 'row' }, t('months.row.end')),
-      m.end.map((v, c) => (accounts[c]?.spent ? h('td', { class: 'n muted' }, t('months.spent')) : numCell(v, { strong: true }))),
+      order.map((c) => (accounts[c]?.spent ? h('td', { class: 'n muted' }, t('months.spent')) : numCell(m.end[c] ?? 0, { strong: true }))),
       several ? numCell(sum(m.end), { strong: true }) : null,
       noteCell(),
     ),
@@ -368,7 +371,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
             'tr',
             null,
             h('th', { scope: 'col' }, t('months.col.item')),
-            accounts.map((a) => h('th', { scope: 'col', class: 'n' }, a.name)),
+            order.map((c) => h('th', { scope: 'col', class: 'n' }, accounts[c]?.name ?? '')),
             several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
             hasNotes ? h('th', { scope: 'col' }, t('months.col.note')) : null,
           ),
@@ -380,8 +383,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
   );
 }
 
-function lineRow(ctx: Ctx, line: Line, month: number, several: boolean, hasNotes: boolean): HTMLElement {
-  const accounts = ctx.data.config.accounts;
+function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: boolean, hasNotes: boolean): HTMLElement {
   const marks = [
     line.estimated ? chip(t('chip.estimated'), 'estimated') : null,
     line.overridden ? chip(t('chip.changed'), 'accent') : null,
@@ -391,7 +393,7 @@ function lineRow(ctx: Ctx, line: Line, month: number, several: boolean, hasNotes
     'tr',
     { class: `row-line${line.amount === 0 ? ' is-zero' : ''}` },
     h('th', { scope: 'row' }, h('span', { class: 'line-name' }, line.name), marks),
-    accounts.map((_, c) => {
+    order.map((c) => {
       const delta = line.deltas[c] ?? 0;
       const involved = delta !== 0 || line.account === c || line.to === c;
       if (!involved) return h('td', { class: 'n' });
@@ -422,7 +424,7 @@ function lineRow(ctx: Ctx, line: Line, month: number, several: boolean, hasNotes
 function realCard(ctx: Ctx, m: MonthResult, ym: string, opts: { planned?: boolean } = {}): HTMLElement {
   const planned = opts.planned !== false;
   const accounts = ctx.data.config.accounts;
-  const rows = accounts.map((a, c) => {
+  const rows = inOrder(accounts, accountOrder(ctx.data.config)).map(({ item: a, index: c }) => {
     const id = uid('real');
     const errId = `${id}-err`;
     const input = h('input', {

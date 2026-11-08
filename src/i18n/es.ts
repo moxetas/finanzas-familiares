@@ -352,6 +352,8 @@ export const es = {
   'settings.accounts.sub': 'Dónde está tu dinero: banco, hucha, efectivo…',
   'settings.accounts.add': 'Añadir cuenta',
   'settings.accounts.noNumbers': 'No escribas números de cuenta; con el nombre basta.',
+  'settings.accounts.reorder': 'Arrastra ≡ para cambiar el orden. Las cuentas salen en ese orden en la tabla de Meses.',
+  'settings.accounts.move': 'Mover {name} (flechas arriba y abajo)',
   'settings.items': 'Conceptos de cada mes',
   'settings.items.sub': 'Lo que entra y sale todos los meses (o en un rango de meses).',
   'settings.items.add': 'Añadir concepto',

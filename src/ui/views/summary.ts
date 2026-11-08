@@ -3,6 +3,7 @@
 import { barChart, lineChart } from '../../charts/charts';
 import type { Series } from '../../charts/common';
 import { computeYear } from '../../calc/engine';
+import { accountOrder, inOrder } from '../../calc/order';
 import { fmtCompact, fmtMoney, monthName, t } from '../../i18n';
 import { card, kpi, money, pageHeader } from '../components';
 import type { Ctx } from '../context';
@@ -33,7 +34,7 @@ export function summaryView(ctx: Ctx): HTMLElement {
   const tooMany = accounts.length > MAX_SERIES;
   const balanceSeries: Series[] = tooMany
     ? [{ name: t('summary.total'), slot: 1, values: months.map((m) => m.totalClosing) }]
-    : accounts.map((a, i) => ({ name: a.name, slot: i + 1, values: months.map((m) => m.closing[i] ?? 0) }));
+    : inOrder(accounts, accountOrder(config)).map(({ item: a, index: i }) => ({ name: a.name, slot: i + 1, values: months.map((m) => m.closing[i] ?? 0) }));
 
   const balance = card(
     { title: t('summary.balanceChart'), sub: t('summary.balanceChart.sub'), id: 'chart-balance' },

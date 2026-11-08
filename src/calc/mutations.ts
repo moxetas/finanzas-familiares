@@ -5,6 +5,7 @@
 
 import { historyCellKey, itemOverrideKey, parseIndexedKey, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2 } from './money';
+import { accountOrder } from './order';
 import type { Account, AppData, Config, DomRow, Domiciliaciones, Entry, Item, Payment } from './types';
 
 /** Copia superficial con arrays y objetos de primer nivel nuevos. */
@@ -92,8 +93,45 @@ export function removeAccount(data: AppData, index: number, reassignTo: number):
   });
   next.config.payments = next.config.payments.map((p) => ({ ...p, account: remap(p.account) }));
   next.entries = next.entries.map((e) => ({ ...e, account: remap(e.account) }));
+  if (next.config.debts) next.config.debts = next.config.debts.map((d) => ({ ...d, account: remap(d.account) }));
   next.real_balances = shiftKeys(next.real_balances, 'c', index);
+  next.overrides = shiftColumnKeys(next.overrides, index);
+  if (data.config.accountOrder) {
+    next.config.accountOrder = accountOrder(data.config).filter((c) => c !== index).map(shift);
+  }
   return next;
+}
+
+/**
+ * Filas libres y traspasos de cada mes (`AAAA-MM_f<fila>_c<cuenta>`,
+ * `AAAA-MM_t_c<cuenta>`): borra las de la cuenta quitada y baja una posición
+ * las de cuentas posteriores, para que cada importe siga en su cuenta.
+ */
+function shiftColumnKeys(dict: Record<string, number>, removed: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(dict)) {
+    const m = /^(\d{4}-\d{2}_(?:f\d+|t))_c(\d+)$/.exec(key);
+    if (!m) {
+      out[key] = value;
+      continue;
+    }
+    const col = Number(m[2]);
+    if (col === removed) continue;
+    out[`${m[1]}_c${col > removed ? col - 1 : col}`] = value;
+  }
+  return out;
+}
+
+/**
+ * Mueve la cuenta que se ve en la posición `from` a la posición `to` (las dos
+ * en el orden en que se ven). Solo cambia `config.accountOrder`.
+ */
+export function moveAccount(data: AppData, from: number, to: number): AppData {
+  const order = accountOrder(data.config);
+  if (from === to || from < 0 || to < 0 || from >= order.length || to >= order.length) return data;
+  const [moved] = order.splice(from, 1);
+  order.splice(to, 0, moved!);
+  return { ...data, config: { ...data.config, accountOrder: order } };
 }
 
 /** Cuántos conceptos, pagos y apuntes usan una cuenta (para avisar antes de quitarla). */

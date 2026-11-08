@@ -1,7 +1,8 @@
 /** Ajustes: año, cuentas, conceptos, pagos, copia de seguridad y más. */
 
 import { parseDate } from '../../calc/keys';
-import { setYear } from '../../calc/mutations';
+import { moveAccount, setYear } from '../../calc/mutations';
+import { accountOrder, inOrder } from '../../calc/order';
 import type { Item } from '../../calc/types';
 import { fmtDate, fmtDateTime, monthName, t } from '../../i18n';
 import { exportBackup, importBackup } from '../backup-actions';
@@ -18,6 +19,7 @@ import { applyTheme } from '../theme';
 import { toast } from '../toast';
 import { selectField } from '../fields';
 import { openImport } from '../import-ai';
+import { dragHandle, makeSortable } from '../sortable';
 
 const TYPE_TONE: Record<Item['type'], ChipTone> = { Ingreso: 'income', Gasto: 'expense', Ahorro: 'saving' };
 
@@ -27,10 +29,11 @@ function monthsLabel(item: Item): string {
   return t('item.months.range', { from: monthName(item.from_month, 'short'), to: monthName(item.to_month, 'short') });
 }
 
-function row(opts: { title: string; sub?: string; chips?: (HTMLElement | null)[]; value?: HTMLElement; onClick: () => void; label?: string; focusKey: string }): HTMLElement {
+function row(opts: { title: string; sub?: string; chips?: (HTMLElement | null)[]; value?: HTMLElement; onClick: () => void; label?: string; focusKey: string; handle?: HTMLElement }): HTMLElement {
   return h(
     'li',
-    null,
+    opts.handle ? { class: 'sortable-row' } : null,
+    opts.handle ?? null,
     h(
       'button',
       { type: 'button', class: 'row-btn', onclick: opts.onClick, 'aria-label': opts.label, 'data-focus-key': opts.focusKey },
@@ -60,7 +63,22 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     h('p', { class: 'field-hint' }, t('settings.year.hint')),
   );
 
-  // ── Cuentas ──
+  // ── Cuentas ── (en el orden en que se ven en la tabla; se cambia arrastrando el asa)
+  const accountList = h(
+    'ul',
+    { class: 'rows' },
+    inOrder(accounts, accountOrder(config)).map(({ item: a, index: i }) =>
+      row({
+        title: a.name,
+        sub: t('field.initial'),
+        value: money(a.initial),
+        focusKey: `account-${i}`,
+        onClick: () => editAccount(ctx, i),
+        handle: several ? dragHandle(t('settings.accounts.move', { name: a.name }), `account-move-${i}`) : undefined,
+      }),
+    ),
+  );
+  if (several) makeSortable(accountList, (from, to) => ctx.commit(moveAccount(ctx.data, from, to)));
   const accountsCard = card(
     {
       title: t('settings.accounts'),
@@ -68,11 +86,8 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
       id: 'accounts',
       actions: button(t('settings.accounts.add'), { icon: 'plus', kind: 'primary', focusKey: 'add-account', onClick: () => editAccount(ctx, null) }),
     },
-    h(
-      'ul',
-      { class: 'rows' },
-      accounts.map((a, i) => row({ title: a.name, sub: t('field.initial'), value: money(a.initial), focusKey: `account-${i}`, onClick: () => editAccount(ctx, i) })),
-    ),
+    accountList,
+    several ? h('p', { class: 'field-hint' }, t('settings.accounts.reorder')) : null,
     h('p', { class: 'field-hint privacy-hint' }, icon('info', 16), t('settings.accounts.noNumbers')),
   );
 

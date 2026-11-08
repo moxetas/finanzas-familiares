@@ -167,6 +167,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     }
   }
   const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);
+  const accountOrder = arr(cfg['accountOrder']).filter((x): x is number => Number.isInteger(x) && (x as number) >= 0 && (x as number) < accounts.length);
+  const orderOk = accountOrder.length > 0 && new Set(accountOrder).size === accountOrder.length;
   const salaries = sanitizeSalaries(cfg['salaries']);
   const btc = sanitizeBtc(cfg['btc']);
 
@@ -181,6 +183,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       ...(debts.length ? { debts } : {}),
       ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
       ...(freeRowsBefore ? { freeRowsBefore } : {}),
+      ...(orderOk ? { accountOrder } : {}),
       ...(salaries.length ? { salaries } : {}),
       ...(btc.length ? { btc } : {}),
     },

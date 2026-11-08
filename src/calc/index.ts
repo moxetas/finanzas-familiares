@@ -7,3 +7,4 @@ export * from './reminders';
 export * from './extras';
 export * from './debts';
 export * from './income';
+export * from './order';

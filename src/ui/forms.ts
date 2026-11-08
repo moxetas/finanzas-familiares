@@ -3,6 +3,7 @@
 import type { Line } from '../calc/engine';
 import { monthKey, daysInMonth, todayISO } from '../calc/keys';
 import { setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
+import { accountOrder, inOrder } from '../calc/order';
 import {
   removeDomRow,
   saveDomRow,
@@ -33,8 +34,9 @@ import { h } from './dom';
 import { amountField, checkboxField, dateField, monthField, readAll, segmentedField, selectField, textField } from './fields';
 import { toast } from './toast';
 
+/** Cuentas para elegir, en el orden en que se ven en la tabla. */
 function accountOptions(ctx: Ctx) {
-  return ctx.data.config.accounts.map((a, i) => ({ value: i, label: a.name }));
+  return inOrder(ctx.data.config.accounts, accountOrder(ctx.data.config)).map(({ item: a, index: i }) => ({ value: i, label: a.name }));
 }
 
 function deleteAction(onClick: () => void): DialogAction {
@@ -82,7 +84,7 @@ export function deleteAccount(ctx: Ctx, index: number): void {
   }
   const usage = accountUsage(ctx.data, index);
   const used = usage.items + usage.payments + usage.entries > 0;
-  const others = accounts.map((a, i) => ({ value: i, label: a.name })).filter((o) => o.value !== index);
+  const others = accountOptions(ctx).filter((o) => o.value !== index);
   const target = selectField({ label: t('account.delete.reassign'), options: others, value: others[0]!.value });
   openDialog({
     title: t('account.delete.title', { name: account.name }),

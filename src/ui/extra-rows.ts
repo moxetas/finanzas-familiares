@@ -14,6 +14,14 @@ interface Opts {
   /** Añadir columna de total y/o de notas al final de cada fila. */
   totalCol: boolean;
   noteCol: boolean;
+  /** Orden en que se ven las columnas (índices). Sin él, el de los datos. */
+  order?: number[];
+}
+
+/** Celdas de una fila en el orden en que se ven las columnas. */
+function cells(ctx: Ctx, o: Opts, values: (number | null)[], slot: number | null, rowName: string): HTMLElement[] {
+  const order = o.order ?? values.map((_, c) => c);
+  return order.map((c) => cell(ctx, o, values[c] ?? null, c, slot, rowName));
 }
 
 function cell(ctx: Ctx, o: Opts, value: number | null, col: number, slot: number | null, rowName: string): HTMLElement {
@@ -58,7 +66,7 @@ export function freeRows(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement[] 
           row.label || placeholder,
         ),
       ),
-      row.values.map((v, c) => cell(ctx, o, v, c, slot, row.label || placeholder)),
+      cells(ctx, o, row.values, slot, row.label || placeholder),
       o.totalCol ? h('td', { class: 'n muted' }, row.values.some((v) => v !== null) ? money(rowTotal(row.values), { plain: true, tone: 'none' }) : null) : null,
       o.noteCol ? h('td', { class: 'note-cell' }) : null,
     );
@@ -72,7 +80,7 @@ export function transferRow(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement
     'tr',
     { class: 'row-line row-transfer' },
     h('th', { scope: 'row' }, h('span', { class: 'line-name' }, t('extras.transfer'))),
-    extras.transfer.map((v, c) => cell(ctx, o, v, c, null, t('extras.transfer'))),
+    cells(ctx, o, extras.transfer, null, t('extras.transfer')),
     // Si lo que sale no es igual a lo que entra, se marca para que se vea.
     o.totalCol ? h('td', { class: `n${used && total !== 0 ? ' neg' : ' muted'}`, title: used && total !== 0 ? t('extras.transfer.unbalanced') : undefined }, used ? money(total, { plain: true, tone: 'none' }) : null) : null,
     o.noteCol ? h('td', { class: 'note-cell' }, used && total !== 0 ? t('extras.transfer.unbalanced') : '') : null,

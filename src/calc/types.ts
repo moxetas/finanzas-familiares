@@ -75,6 +75,12 @@ export interface Config {
   btc?: BtcTrade[];
   /** Las filas libres se muestran delante de la partida con este nombre (si no, al final). */
   freeRowsBefore?: string;
+  /**
+   * Orden en que se ven las cuentas (índices de `accounts`). Solo cambia cómo
+   * se muestran: los datos siguen usando el índice de cada cuenta. Sin él, se
+   * ven en el orden en que se crearon. Ver `accountOrder()`.
+   */
+  accountOrder?: number[];
 }
 
 /** Importe cambiado solo para un mes: `"AAAA-MM_i<item>"` o `"AAAA-MM_p<pago>"`. */

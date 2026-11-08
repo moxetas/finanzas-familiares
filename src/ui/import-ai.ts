@@ -1,6 +1,7 @@
 /** «Añadir desde foto, captura o PDF»: con la IA de cada uno o pegando el texto. */
 
 import { addEntry, addItem, addPayment } from '../calc/mutations';
+import { accountOrder, inOrder } from '../calc/order';
 import type { AppData } from '../calc/types';
 import { todayISO } from '../calc/keys';
 import { parseAmount } from '../calc/money';
@@ -75,7 +76,7 @@ const KIND_LABEL: Record<ImportKind, Parameters<typeof t>[0]> = {
 function review(ctx: Ctx, rows: ImportRow[]): void {
   const accounts = ctx.data.config.accounts;
   const accId = uid('acc');
-  const account = h('select', { id: accId }, accounts.map((a, i) => h('option', { value: i }, a.name)));
+  const account = h('select', { id: accId }, inOrder(accounts, accountOrder(ctx.data.config)).map(({ item: a, index: i }) => h('option', { value: i }, a.name)));
   const editors = rows.map((r) => {
     const on = h('input', { type: 'checkbox', checked: true, 'aria-label': t('import.include') });
     const kind = h('select', { 'aria-label': t('field.type') }, (Object.keys(KIND_LABEL) as ImportKind[]).map((k) => h('option', { value: k, selected: k === r.kind }, t(KIND_LABEL[k]))));
