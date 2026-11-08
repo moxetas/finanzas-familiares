@@ -144,7 +144,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
       ...Object.values(ctx.data.history ?? {}).flatMap((hm) => hm.rows.map((r) => r.l)),
     ]),
   ).filter(Boolean);
-  const anchor = config.freeRowsAfter ?? '';
+  const anchor = config.freeRowsBefore ?? '';
   const anchorField = selectField<string>({
     label: t('extras.anchor.label'),
     value: names.includes(anchor) ? anchor : '',
@@ -153,8 +153,8 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
   anchorField.select.setAttribute('data-focus-key', 'free-anchor');
   anchorField.select.addEventListener('change', () => {
     const v = anchorField.select.value;
-    const { freeRowsAfter: _old, ...rest } = ctx.data.config;
-    ctx.commit({ ...ctx.data, config: v ? { ...rest, freeRowsAfter: v } : rest });
+    const { freeRowsBefore: _old, ...rest } = ctx.data.config;
+    ctx.commit({ ...ctx.data, config: v ? { ...rest, freeRowsBefore: v } : rest });
   });
   const extrasCard = card({ title: t('extras.anchor.title'), sub: t('extras.anchor.sub'), id: 'filas-libres' }, anchorField.el);
 

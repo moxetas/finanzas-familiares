@@ -144,7 +144,7 @@ export const es = {
   'extras.transfer.unbalanced': 'Lo que sale no es igual a lo que entra.',
   'extras.anchor.title': 'Filas libres de cada mes',
   'extras.anchor.sub': 'Cada mes tiene 3 filas libres para apuntar lo que quieras y una fila «Traspaso» para pasar dinero entre cuentas.',
-  'extras.anchor.label': 'Poner las filas libres después de',
+  'extras.anchor.label': 'Poner las filas libres antes de',
   'extras.anchor.end': 'Al final, antes de «Traspaso»',
   'months.group.Ingreso': 'Ingresos',
   'months.group.Gasto': 'Gastos',

@@ -69,8 +69,8 @@ export interface Config {
   debts?: Debt[];
   /** Nombre de las filas libres de cada mes: `"AAAA-MM_f<fila>"` → texto. */
   freeLabels?: Record<string, string>;
-  /** Las filas libres se muestran detrás de la partida con este nombre (si no, al final). */
-  freeRowsAfter?: string;
+  /** Las filas libres se muestran delante de la partida con este nombre (si no, al final). */
+  freeRowsBefore?: string;
 }
 
 /** Importe cambiado solo para un mes: `"AAAA-MM_i<item>"` o `"AAAA-MM_p<pago>"`. */

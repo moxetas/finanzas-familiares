@@ -166,7 +166,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && label) freeLabels[k] = label;
     }
   }
-  const freeRowsAfter = cleanText(cfg['freeRowsAfter'], 120);
+  const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);
 
   const out: AppData = {
     config: {
@@ -178,7 +178,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       ...(sections.length ? { sections } : {}),
       ...(debts.length ? { debts } : {}),
       ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
-      ...(freeRowsAfter ? { freeRowsAfter } : {}),
+      ...(freeRowsBefore ? { freeRowsBefore } : {}),
     },
     overrides,
     real_balances,

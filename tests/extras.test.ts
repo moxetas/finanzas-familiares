@@ -33,10 +33,10 @@ describe('filas libres y traspaso', () => {
     let d = setTransferCell(base(), '2026-11', 0, -300);
     d = setFreeCell(d, '2026-11', 1, 0, -12.5);
     d = setFreeLabel(d, '2026-11', 1, 'Parking');
-    d = { ...d, config: { ...d.config, freeRowsAfter: 'Seguro Hogar' } };
+    d = { ...d, config: { ...d.config, freeRowsBefore: 'Seguro Hogar' } };
     const back = sanitizeData(JSON.parse(JSON.stringify(d)), 2027, 'A');
     expect(monthExtras(back, '2026-11', 2)).toEqual(monthExtras(d, '2026-11', 2));
-    expect(back.config.freeRowsAfter).toBe('Seguro Hogar');
+    expect(back.config.freeRowsBefore).toBe('Seguro Hogar');
     expect(back.overrides['2026-11_t_c0']).toBe(-300);
   });
 

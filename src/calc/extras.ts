@@ -79,7 +79,7 @@ export function setFreeLabel(data: AppData, ym: string, slot: number, label: str
   return { ...data, config: { ...data.config, freeLabels } };
 }
 
-/** Las filas libres van detrás de la partida con este nombre (sin distinguir mayúsculas). */
+/** Las filas libres van delante de la partida con este nombre (sin distinguir mayúsculas). */
 export function isFreeRowsAnchor(name: string, anchor: string | undefined): boolean {
   return !!anchor && name.trim().toLocaleLowerCase() === anchor.trim().toLocaleLowerCase();
 }

@@ -97,17 +97,17 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
       ),
     );
   };
-  // Filas del mes; las libres van detrás de la partida elegida en Ajustes (o al final) y el traspaso al final.
+  // Filas del mes; las libres van delante de la partida elegida en Ajustes (o al final) y el traspaso al final.
   const extraOpts = { ym, colNames: m.cols, totalCol: false, noteCol: false };
   const historyBody = () => {
     const out: HTMLElement[] = [];
     let placed = false;
     m.rows.forEach((r, ri) => {
-      out.push(h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
-      if (!placed && isFreeRowsAnchor(r.l, ctx.data.config.freeRowsAfter)) {
+      if (!placed && isFreeRowsAnchor(r.l, ctx.data.config.freeRowsBefore)) {
         out.push(...freeRows(ctx, extras, extraOpts));
         placed = true;
       }
+      out.push(h('tr', { class: 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l)), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
     });
     if (!placed) out.push(...freeRows(ctx, extras, extraOpts));
     out.push(transferRow(ctx, extras, extraOpts));
@@ -278,11 +278,11 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     if (lines.length === 0) return;
     rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, label)));
     for (const line of lines) {
-      rows.push(lineRow(ctx, line, month, several, hasNotes));
-      if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsAfter)) {
+      if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
         rows.push(...freeRows(ctx, m.extras, extraOpts));
         freePlaced = true;
       }
+      rows.push(lineRow(ctx, line, month, several, hasNotes));
     }
   };
 
