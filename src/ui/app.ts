@@ -74,14 +74,10 @@ export function mountApp(root: HTMLElement, store: Store): void {
     h('span', { class: 'topbar-year', id: 'topbar-year' }),
   );
 
-  // Foto de cabecera (decorativa), detrás del título de cada pestaña.
-  const hero = h('div', { class: 'hero', 'aria-hidden': 'true', hidden: true });
-
   clear(root);
-  root.append(h('a', { href: '#main', class: 'skip-link' }, t('nav.main')), header, hero, banner, main, tabs, toasts);
-  const paintHero = () => paintBackdrop(hero, root, main, backdropFor(store.state.meta.backdrop, parseRoute(location.hash).name));
-  window.addEventListener('resize', paintHero);
-  void document.fonts?.ready.then(paintHero);
+  root.append(h('a', { href: '#main', class: 'skip-link' }, t('nav.main')), header, banner, main, tabs, toasts);
+  // Fondo de pantalla (decorativo), detrás de toda la app.
+  const paintHero = () => paintBackdrop(backdropFor(store.state.meta.backdrop, parseRoute(location.hash).name));
 
   let lastRoute = '';
 

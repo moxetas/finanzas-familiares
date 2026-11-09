@@ -391,7 +391,7 @@ export const ro: Messages = {
   'settings.theme.light': 'Luminos',
   'settings.theme.dark': 'Întunecat',
   'settings.backdrop': 'Fundal',
-  'settings.backdrop.sub': 'O fotografie în spatele titlului fiecărei file. Se alege pe fiecare telefon.',
+  'settings.backdrop.sub': 'O fotografie în fundalul întregii aplicații. Se alege pe fiecare telefon.',
   'backdrop.none': 'Fără fundal',
   'backdrop.tabs': 'Altul pe fiecare filă',
   'backdrop.azul': 'Albastru',

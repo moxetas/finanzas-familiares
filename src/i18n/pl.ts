@@ -391,7 +391,7 @@ export const pl: Messages = {
   'settings.theme.light': 'Jasny',
   'settings.theme.dark': 'Ciemny',
   'settings.backdrop': 'Tło',
-  'settings.backdrop.sub': 'Zdjęcie za tytułem każdej karty. Wybiera się je na każdym telefonie.',
+  'settings.backdrop.sub': 'Zdjęcie w tle całej aplikacji. Wybiera się je na każdym telefonie.',
   'backdrop.none': 'Bez tła',
   'backdrop.tabs': 'Inne na każdej karcie',
   'backdrop.azul': 'Niebieskie',

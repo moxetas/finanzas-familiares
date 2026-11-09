@@ -391,7 +391,7 @@ export const fr: Messages = {
   'settings.theme.light': 'Clair',
   'settings.theme.dark': 'Sombre',
   'settings.backdrop': 'Fond',
-  'settings.backdrop.sub': 'Une photo derrière le titre de chaque onglet. Se choisit sur chaque téléphone.',
+  'settings.backdrop.sub': 'Une photo en fond de toute l’app. Se choisit sur chaque téléphone.',
   'backdrop.none': 'Sans fond',
   'backdrop.tabs': 'Un différent sur chaque onglet',
   'backdrop.azul': 'Bleu',

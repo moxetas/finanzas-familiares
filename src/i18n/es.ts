@@ -393,7 +393,7 @@ export const es = {
   'settings.theme.light': 'Clara',
   'settings.theme.dark': 'Oscura',
   'settings.backdrop': 'Fondo',
-  'settings.backdrop.sub': 'Una foto detrás del título de cada pestaña. Se elige en cada móvil.',
+  'settings.backdrop.sub': 'Una foto de fondo detrás de toda la app. Se elige en cada móvil.',
   'backdrop.none': 'Sin fondo',
   'backdrop.tabs': 'Uno distinto en cada pestaña',
   'backdrop.azul': 'Azul',

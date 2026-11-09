@@ -391,7 +391,7 @@ export const ar: Messages = {
   'settings.theme.light': 'فاتح',
   'settings.theme.dark': 'داكن',
   'settings.backdrop': 'الخلفية',
-  'settings.backdrop.sub': 'صورة خلف عنوان كل تبويب. تُختار في كل هاتف.',
+  'settings.backdrop.sub': 'صورة خلفية للتطبيق كله. تُختار في كل هاتف.',
   'backdrop.none': 'دون خلفية',
   'backdrop.tabs': 'خلفية مختلفة لكل تبويب',
   'backdrop.azul': 'أزرق',

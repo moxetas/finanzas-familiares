@@ -391,7 +391,7 @@ export const de: Messages = {
   'settings.theme.light': 'Hell',
   'settings.theme.dark': 'Dunkel',
   'settings.backdrop': 'Hintergrund',
-  'settings.backdrop.sub': 'Ein Foto hinter dem Titel jedes Reiters. Wird auf jedem Handy gewählt.',
+  'settings.backdrop.sub': 'Ein Foto als Hintergrund der ganzen App. Wird auf jedem Handy gewählt.',
   'backdrop.none': 'Kein Hintergrund',
   'backdrop.tabs': 'Pro Reiter ein anderer',
   'backdrop.azul': 'Blau',

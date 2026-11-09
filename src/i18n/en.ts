@@ -391,7 +391,7 @@ export const en: Messages = {
   'settings.theme.light': 'Light',
   'settings.theme.dark': 'Dark',
   'settings.backdrop': 'Background',
-  'settings.backdrop.sub': 'A photo behind the title of each tab. Chosen on each phone.',
+  'settings.backdrop.sub': 'A photo behind the whole app. Chosen on each phone.',
   'backdrop.none': 'No background',
   'backdrop.tabs': 'A different one on each tab',
   'backdrop.azul': 'Blue',

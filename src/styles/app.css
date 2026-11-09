@@ -1875,43 +1875,75 @@ html[dir='rtl'] .amount-wrap input {
   unicode-bidi: plaintext;
 }
 
-/* ── Foto de cabecera (Ajustes → Fondo) ──────────────────────────────────
-   Detrás del título de cada pestaña; se funde con el color de la página.
-   Las tarjetas van encima, con su fondo de siempre. Ver src/ui/backdrop.ts. */
-.hero {
-  position: absolute;
-  inset-inline: 0;
-  z-index: 0;
+/* ── Fondo de pantalla (Ajustes → Fondo), como en Moxetas Invest ─────────
+   Una foto fija detrás de toda la app, un poco tapada con el color de la
+   página para que se lea, y las tarjetas «de cristal»: medio transparentes y
+   desenfocando lo que hay detrás. Ver src/ui/backdrop.ts. */
+.wall {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background-color: #0b1a2e;
   background-size: cover;
   background-repeat: no-repeat;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent);
-  mask-image: linear-gradient(to bottom, #000 50%, transparent);
 }
-/* Oscurece arriba, donde va el título en blanco. */
-.hero::after {
+.wall::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgb(4 10 18 / 0.6), rgb(4 10 18 / 0.3) 55%, rgb(4 10 18 / 0));
+  background: var(--bg);
+  opacity: var(--wall-dim, 0.3);
 }
-.has-hero .banner-slot,
-.has-hero .main {
-  position: relative;
-  z-index: 1;
+html.has-wall {
+  background: var(--bg);
 }
-.has-hero .view > .page-head .page-title,
-.has-hero .view > .page-head .sub {
-  color: #fff;
-  text-shadow: 0 1px 12px rgb(0 0 0 / 0.6);
+html.has-wall body {
+  background: transparent;
 }
-.has-hero .view > .page-head .sub {
-  color: rgb(255 255 255 / 0.9);
+/* Títulos y textos sueltos sobre la foto: con un halo del color de la página. */
+.has-wall .page-title,
+.has-wall .page-head .sub,
+.has-wall .main > .view > .field-hint {
+  text-shadow: 0 0 6px var(--bg), 0 0 14px var(--bg), 0 1px 3px var(--bg);
 }
-/* Hueco encima del título para que se vea la foto, como una portada. */
-.has-hero .view > .page-head {
-  padding-top: clamp(64px, 18vw, 120px);
+/* Tarjetas de cristal. */
+.has-wall .card,
+.has-wall .kpi,
+.has-wall .notice,
+.has-wall .segmented,
+.has-wall .month-select,
+.has-wall .month-switch .btn,
+.has-wall .page-actions .btn-secondary {
+  background-color: color-mix(in srgb, var(--surface) 76%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
+}
+.has-wall .kpi-accent,
+.has-wall .kpi.is-accent {
+  background-color: color-mix(in srgb, var(--accent-soft) 80%, transparent);
+}
+.has-wall .card .card,
+.has-wall .card .kpi {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Tablas: la primera columna (fija al desplazar) y las filas de suma, casi opacas
+   para que no se transparenten las cifras que pasan por debajo. */
+.has-wall .grid-table th:first-child,
+.has-wall .grid-table td:first-child {
+  background-color: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+.has-wall .plan-table .row-group th,
+.has-wall .plan-table .row-sum th,
+.has-wall .plan-table .row-sum td {
+  background-color: color-mix(in srgb, var(--surface-2) 80%, transparent);
+}
+.has-wall .topbar,
+.has-wall .tabbar {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(18px);
+  backdrop-filter: saturate(1.4) blur(18px);
 }
 
 /* Elegir el fondo: miniaturas. */

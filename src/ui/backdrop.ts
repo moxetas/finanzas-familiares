@@ -1,7 +1,7 @@
 /**
- * Fondo de cabecera: una foto detrás del título de cada pestaña, que se funde
- * con el color de la página. Las tarjetas y las tablas van encima, sobre su
- * fondo de siempre, así se leen igual de bien.
+ * Fondo de pantalla, como en Moxetas Invest: una foto fija detrás de toda la
+ * app, un poco tapada con el color de la página, y las tarjetas «de cristal»
+ * encima (estilos en app.css, «.has-wall»).
  *
  * Se elige en Ajustes → Fondo (cada móvil el suyo): sin fondo, uno para todas
  * las pestañas o «uno distinto en cada pestaña». Las imágenes no llevan texto,
@@ -57,23 +57,26 @@ export function backdropFor(choice: string | undefined, tab: string): Backdrop |
 
 export const backdropUrl = (id: string, mini = false) => `themes/${id}${mini ? '-mini' : ''}.jpg`;
 
-/**
- * Pone la foto en `hero` (o la quita) y ajusta su alto para que llegue un poco
- * más abajo del título de la pestaña, haya o no avisos encima.
- */
-export function paintBackdrop(hero: HTMLElement, root: HTMLElement, main: HTMLElement, b: Backdrop | null): void {
-  root.classList.toggle('has-hero', b !== null);
-  hero.hidden = b === null;
-  if (!b) return;
-  const url = backdropUrl(b.id);
-  if (hero.dataset['src'] !== url) {
-    hero.style.backgroundImage = `url("${url}")`;
-    hero.dataset['src'] = url;
+/** Pone la foto de fondo de toda la pantalla (o la quita). */
+export function paintBackdrop(b: Backdrop | null): void {
+  const root = document.documentElement;
+  let wall = document.getElementById('wall');
+  root.classList.toggle('has-wall', b !== null);
+  if (!b) {
+    wall?.remove();
+    return;
   }
-  hero.style.backgroundPosition = b.position;
-  const head = main.querySelector('.page-head');
-  const top = (root.querySelector('.topbar') as HTMLElement | null)?.offsetHeight ?? 0;
-  const bottom = head ? head.getBoundingClientRect().bottom + window.scrollY : top + 160;
-  hero.style.top = `${top}px`;
-  hero.style.height = `${Math.max(260, Math.round(bottom - top + 140))}px`;
+  if (!wall) {
+    wall = document.createElement('div');
+    wall.id = 'wall';
+    wall.className = 'wall';
+    wall.setAttribute('aria-hidden', 'true');
+    document.body.prepend(wall);
+  }
+  const url = backdropUrl(b.id);
+  if (wall.dataset['src'] !== url) {
+    wall.style.backgroundImage = `url("${url}")`;
+    wall.dataset['src'] = url;
+  }
+  wall.style.backgroundPosition = b.position;
 }
