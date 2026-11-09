@@ -196,7 +196,7 @@ export const fr: Messages = {
   'guide.s7.text': 'Le Résumé vous dit combien vous aurez en fin d’année. Les Rappels, quels paiements arrivent. Et dans Réglages, enregistrez de temps en temps une sauvegarde : si vous effacez les données du navigateur, elles sont perdues.',
   'guide.start.title': 'On commence ?',
   'guide.toSettings': 'Aller aux Réglages',
-  'guide.pdf': 'Télécharger ce guide en PDF (en espagnol)',
+  'guide.pdf': 'Télécharger ce guide en PDF',
   'dom.title': 'Prélèvements',
   'dom.sub': 'Ce qui est prélevé régulièrement, combien et sur quel compte. Touchez-en un pour le modifier.',
   'dom.add': 'Ajouter un prélèvement',

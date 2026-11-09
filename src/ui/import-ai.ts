@@ -5,15 +5,28 @@ import { accountOrder, inOrder } from '../calc/order';
 import type { AppData } from '../calc/types';
 import { todayISO } from '../calc/keys';
 import { parseAmount } from '../calc/money';
-import { fmtInput, t } from '../i18n';
-import { AI_PROMPT, parseImport, type ImportKind, type ImportRow } from '../storage/ai-import';
+import { currentLocale, fmtInput, t } from '../i18n';
+import { aiPrompt, parseImport, type ImportKind, type ImportRow } from '../storage/ai-import';
 import { newId } from '../storage/sanitize';
 import type { Ctx } from './context';
 import { openDialog } from './dialog';
 import { h, uid } from './dom';
 import { toast } from './toast';
 
+/** Las instrucciones para la IA, pidiendo los conceptos en el idioma de la app («German», «Polish»…). */
+function promptForApp(): string {
+  const lang = currentLocale();
+  let name: string = lang;
+  try {
+    name = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang;
+  } catch {
+    /* navegador antiguo: vale el código */
+  }
+  return aiPrompt(lang, name);
+}
+
 export function openImport(ctx: Ctx): void {
+  const prompt = promptForApp();
   const id = uid('imp');
   const area = h('textarea', { id, rows: 6, placeholder: t('import.paste.placeholder'), class: 'import-area' });
   const copy = h(
@@ -23,10 +36,10 @@ export function openImport(ctx: Ctx): void {
       class: 'btn btn-secondary',
       onclick: async () => {
         try {
-          await navigator.clipboard.writeText(AI_PROMPT);
+          await navigator.clipboard.writeText(prompt);
           toast(t('import.copied'));
         } catch {
-          area.value = AI_PROMPT;
+          area.value = prompt;
           area.select();
           toast(t('import.copyManual'));
         }

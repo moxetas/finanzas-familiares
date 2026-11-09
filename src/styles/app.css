@@ -42,9 +42,9 @@
   --grid: #e4eae8;
   --axis: #5b6966;
 
-  --font-display: 'Bricolage Grotesque', 'IBM Plex Sans', system-ui, sans-serif;
-  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display: 'Bricolage Grotesque', 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'IBM Plex Sans Arabic', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --radius: 16px;
   --radius-s: 10px;
@@ -471,6 +471,16 @@ textarea {
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
   transition: background-color 0.15s ease, border-color 0.15s ease;
+  /* Un texto largo (alemán, francés…) pasa a dos líneas en vez de ensanchar la página. */
+  max-width: 100%;
+}
+.btn > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.btn > .icon {
+  flex: none;
 }
 .btn-primary {
   background: var(--accent);

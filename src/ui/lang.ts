@@ -4,7 +4,7 @@
  * de abrir los datos, para que el ejemplo de la primera vez salga ya traducido.
  */
 
-import { isLang, type Lang } from '../i18n';
+import { isLang, t, type Lang } from '../i18n';
 
 const KEY = 'finanzas-familiares:lang';
 
@@ -24,4 +24,16 @@ export function saveLang(lang: Lang): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Nombre de la app en el idioma elegido, para cuando se añade a la pantalla de
+ * inicio: el manifiesto (Android) y el título de iPhone. El español usa el
+ * manifiesto de siempre; los demás, `manifest-<idioma>.webmanifest`.
+ * Una app ya instalada conserva el nombre con el que se instaló.
+ */
+export function applyDocumentLang(lang: Lang): void {
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', lang === 'es' ? './manifest.webmanifest' : `./manifest-${lang}.webmanifest`);
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', t('app.short'));
+  document.querySelector('meta[name="description"]')?.setAttribute('content', t('settings.share.text'));
 }

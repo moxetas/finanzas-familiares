@@ -1,11 +1,17 @@
 /** Guía de primeros pasos: sale sola la primera vez y se puede abrir desde Ajustes. */
 
-import { t, type MessageKey } from '../../i18n';
+import { currentLocale, t, type MessageKey } from '../../i18n';
 import { button, card, pageHeader } from '../components';
 import type { Ctx } from '../context';
 import { h } from '../dom';
 import { openImport } from '../import-ai';
 import { startBlank, useExampleAsMine } from '../notices';
+
+/** La guía en PDF en el idioma de la app (public/guia.pdf es la española). */
+function guidePdf(): { href: string; download: string } {
+  const lang = currentLocale();
+  return { href: lang === 'es' ? 'guia.pdf' : `guia-${lang}.pdf`, download: `${t('app.name').replace(/\s+/g, '-')}.pdf` };
+}
 
 const STEPS: { title: MessageKey; text: MessageKey }[] = [
   { title: 'guide.s1.title', text: 'guide.s1.text' },
@@ -42,7 +48,7 @@ export function guideView(ctx: Ctx): HTMLElement {
         example ? button(t('example.mine'), { onClick: () => useExampleAsMine(ctx) }) : button(t('guide.toSettings'), { kind: 'primary', onClick: () => ctx.go('#/ajustes') }),
         button(t('import.button'), { icon: 'upload', onClick: () => openImport(ctx) }),
       ),
-      h('p', { class: 'field-hint' }, h('a', { href: 'guia.pdf', download: 'Guia-Finanzas-familiares.pdf' }, t('guide.pdf'))),
+      h('p', { class: 'field-hint' }, h('a', guidePdf(), t('guide.pdf'))),
     ),
   );
 }

@@ -34,6 +34,28 @@ Reglas:
 - Si hay varios cargos o plazos, pon uno por elemento.
 - No incluyas IBAN, números de cuenta, direcciones ni datos personales.`;
 
+/**
+ * Instrucciones para la IA en el idioma de la app. En español, las de siempre;
+ * en los demás idiomas, en inglés (las entiende cualquier IA) pidiendo los
+ * conceptos en ese idioma. Las claves del JSON no cambian: la app las lee así.
+ */
+export function aiPrompt(lang: string, languageName: string): string {
+  if (lang === 'es') return AI_PROMPT;
+  return `Read the attached document (bill, receipt, screenshot, photo or PDF) and reply with ONLY a JSON code block, no explanations, in this shape:
+
+{"finanzas":[{"tipo":"pago","concepto":"Car insurance","importe":410.50,"fecha":"2027-01-15","estimado":false,"nota":"Yearly"}]}
+
+Rules:
+- Keep the keys and the "tipo" values exactly as written (in Spanish).
+- "tipo": "pago" for a one-off or yearly charge due on a date (insurance, tax, quarterly bill…); "mensual" if it repeats every month (rent, electricity, phone…); "gasto" if it is already paid and was a one-off; "ingreso" if it is money coming in.
+- "importe": positive number with a decimal point, no currency symbol.
+- "fecha": YYYY-MM-DD (the charge or due date; if there is none, the issue date).
+- "estimado": true if the amount is not certain.
+- "concepto" and "nota": short and clear, in ${languageName}.
+- If there are several charges or instalments, one element each.
+- Do not include IBAN, account numbers, addresses or personal data.`;
+}
+
 const KINDS: readonly ImportKind[] = ['pago', 'gasto', 'ingreso', 'mensual'];
 
 function clean(s: unknown, max = 60): string {

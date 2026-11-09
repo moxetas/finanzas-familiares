@@ -196,7 +196,7 @@ export const pl: Messages = {
   'guide.s7.text': 'Podsumowanie mówi, ile będziesz mieć na koniec roku. Przypomnienia — jakie płatności nadchodzą. A w Ustawieniach co jakiś czas zapisz kopię: jeśli usuniesz dane przeglądarki, przepadną.',
   'guide.start.title': 'Zaczynamy?',
   'guide.toSettings': 'Przejdź do Ustawień',
-  'guide.pdf': 'Pobierz ten przewodnik w PDF (po hiszpańsku)',
+  'guide.pdf': 'Pobierz ten przewodnik w PDF',
   'dom.title': 'Polecenia zapłaty',
   'dom.sub': 'Co jest pobierane regularnie, ile i z którego konta. Dotknij, aby zmienić.',
   'dom.add': 'Dodaj polecenie zapłaty',

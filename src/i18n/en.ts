@@ -196,7 +196,7 @@ export const en: Messages = {
   'guide.s7.text': 'Summary tells you how much you will have at the end of the year. Reminders, which payments are coming. And in Settings, save a backup now and then: if you delete the browser data, it is lost.',
   'guide.start.title': 'Shall we start?',
   'guide.toSettings': 'Go to Settings',
-  'guide.pdf': 'Download this guide as PDF (Spanish)',
+  'guide.pdf': 'Download this guide as PDF',
   'dom.title': 'Direct debits',
   'dom.sub': 'What is charged regularly, how much and from which account. Tap one to change it.',
   'dom.add': 'Add direct debit',

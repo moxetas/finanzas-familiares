@@ -37,9 +37,15 @@ En la copia JSON, cada concepto o pago puede llevar además `note` (se ve en una
 
 Cada concepto tiene un rango de meses (*desde / hasta*), así que una paga extra o un gimnasio de seis meses se apuntan una sola vez.
 
+## Idiomas
+
+Español, alemán, inglés, polaco, rumano, francés y árabe (de derecha a izquierda). La primera vez, la app se abre en el idioma del teléfono (si no lo tiene, en inglés) y el ejemplo sale traducido; quien ya la usaba sigue en español. Se cambia en *Ajustes → Idioma* y es de cada móvil (no se sincroniza). Con él cambian también el nombre al instalarla (`public/manifest-<idioma>.webmanifest`), la guía en PDF, las instrucciones para la IA y los avisos con la app cerrada (cada móvil guarda su idioma en `finanzas-push`). Los nombres que escribe cada uno no se traducen.
+
+Los textos están en [`src/i18n/`](src/i18n/) (uno por idioma; una prueba comprueba que no falta ninguno). Las tipografías incluyen el latín extendido (ł, ą, ș, ț…) y, para el árabe, IBM Plex Sans Arabic.
+
 ## Primeros pasos y cargar datos
 
-- **Guía**: la primera vez (con el ejemplo) se abre «Cómo funciona», que se puede volver a ver desde *Ajustes → Ver la guía*. La misma guía en PDF, para enviarla al compartir la app: [`guia.pdf`](https://moxetas.github.io/finanzas-familiares/guia.pdf) (en `public/guia.pdf`, solo con datos del ejemplo).
+- **Guía**: la primera vez (con el ejemplo) se abre «Cómo funciona», que se puede volver a ver desde *Ajustes → Ver la guía*. La misma guía en PDF, para enviarla al compartir la app, en los 7 idiomas: [`guia.pdf`](https://moxetas.github.io/finanzas-familiares/guia.pdf) (español) y `guia-de.pdf`, `guia-en.pdf`, `guia-pl.pdf`, `guia-ro.pdf`, `guia-fr.pdf`, `guia-ar.pdf`. El enlace de la app descarga la del idioma de la app. Solo llevan datos del ejemplo.
 - **Menos pestañas al empezar**: Domiciliaciones y Sueldos solo salen si se usan, o si se activan en *Ajustes*.
 - **Añadir desde foto, captura o PDF** (en Ajustes, Avisos y Meses): la app copia unas instrucciones; la persona adjunta el documento en su app de IA (ChatGPT, Claude, Gemini… la versión gratis vale), pega las instrucciones y pega en la app la respuesta (un JSON). También vale pegar el texto de un correo o el de una foto: se buscan fecha, importe y concepto. Antes de añadir se revisa todo. La app no envía nada a ningún sitio y no necesita servidor ni claves. Lógica en [`src/storage/ai-import.ts`](src/storage/ai-import.ts), con pruebas.
 
@@ -130,6 +136,7 @@ Vite + TypeScript, sin framework ni librerías en tiempo de ejecución (unos 25 
 | `public/` | `manifest.webmanifest` e iconos. |
 | `design/` | Logo original y el script que genera los iconos (`python3 design/make-icons.py`). |
 | `build/` | Plugins de Vite: genera `sw.js` (copia sin conexión con versión por contenido) y añade la política de seguridad. |
+| `tools/guide/` | Crea la guía en PDF en cada idioma, con capturas de la app: `npm run dev` y, en otra terminal, `npm run guide` (o `npm run guide -- de` para uno solo). Usa Playwright con Chromium. |
 | `tests/` | Pruebas del motor, de los cambios, de la lectura de importes y de la copia de seguridad. |
 
 ## Publicación en GitHub Pages

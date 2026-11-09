@@ -102,14 +102,31 @@ export function avisosDeHoy({ payments, overrides }, hoy) {
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
-const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
+/**
+ * Textos de los avisos en cada idioma de la app. Cada móvil guarda el suyo
+ * (`lang` en finanzas-push); si no lo tiene (móviles de antes), en español.
+ * En árabe, las cifras van con números occidentales, como en la app.
+ */
+const IDIOMAS = {
+  es: { tag: 'es-ES', hoy: 'Hoy', manana: 'Mañana', semana: 'Dentro de una semana', dias: (n) => `Dentro de ${n} días`, estimado: 'estimado' },
+  de: { tag: 'de-DE', hoy: 'Heute', manana: 'Morgen', semana: 'In einer Woche', dias: (n) => `In ${n} Tagen`, estimado: 'geschätzt' },
+  en: { tag: 'en-GB', hoy: 'Today', manana: 'Tomorrow', semana: 'In one week', dias: (n) => `In ${n} days`, estimado: 'estimated' },
+  pl: { tag: 'pl-PL', hoy: 'Dziś', manana: 'Jutro', semana: 'Za tydzień', dias: (n) => `Za ${n} dni`, estimado: 'szacunkowo' },
+  ro: { tag: 'ro-RO', hoy: 'Azi', manana: 'Mâine', semana: 'Peste o săptămână', dias: (n) => `Peste ${n} zile`, estimado: 'estimat' },
+  fr: { tag: 'fr-FR', hoy: 'Aujourd’hui', manana: 'Demain', semana: 'Dans une semaine', dias: (n) => `Dans ${n} jours`, estimado: 'estimé' },
+  ar: { tag: 'ar-u-nu-latn', hoy: 'اليوم', manana: 'غدًا', semana: 'بعد أسبوع', dias: (n) => `بعد ${n} أيام`, estimado: 'تقديري' },
+};
 
-export function textoAviso(a) {
-  const cuando = a.dias <= 0 ? 'Hoy' : a.dias === 1 ? 'Mañana' : a.dias === 7 ? 'Dentro de una semana' : `Dentro de ${a.dias} días`;
-  const fecha = new Intl.DateTimeFormat('es-ES', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(diaUTC(a.date)));
+export function textoAviso(a, lang = 'es') {
+  const L = IDIOMAS[lang] ?? IDIOMAS.es;
+  const cuando = a.dias <= 0 ? L.hoy : a.dias === 1 ? L.manana : a.dias === 7 ? L.semana : L.dias(a.dias);
+  const fecha = new Intl.DateTimeFormat(L.tag, { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(diaUTC(a.date)));
+  const importe = new Intl.NumberFormat(L.tag, { style: 'currency', currency: 'EUR', currencyDisplay: 'narrowSymbol', useGrouping: 'always' })
+    .format(a.importe)
+    .replace(/[\u200e\u200f\u061c]/g, '');
   return {
     title: `💶 ${cuando}: ${a.concept}`,
-    body: `${euros.format(a.importe)}${a.estimated ? ' (estimado)' : ''} · ${fecha}`,
+    body: `${importe}${a.estimated ? ` (${L.estimado})` : ''} · ${fecha}`,
     tag: `pago-${a.key}`,
     url: './#/avisos',
   };
@@ -154,9 +171,10 @@ export async function run({ code, ahora = Date.now(), send, db = firebase }) {
   let enviados = 0;
   const caducados = new Set();
   for (const a of enviar) {
-    const aviso = JSON.stringify(textoAviso(a));
     for (const [subId, sub] of subs) {
       if (caducados.has(subId)) continue;
+      // Cada móvil, en su idioma.
+      const aviso = JSON.stringify(textoAviso(a, sub.lang));
       try {
         await send({ endpoint: sub.endpoint, keys: sub.keys }, aviso, vapid);
         enviados++;

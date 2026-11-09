@@ -196,7 +196,7 @@ export const de: Messages = {
   'guide.s7.text': 'Die Übersicht zeigt dir, wie viel du am Jahresende hast. Erinnerungen, welche Zahlungen kommen. Und speichere in den Einstellungen ab und zu eine Sicherung: Wenn du die Browserdaten löschst, sind sie weg.',
   'guide.start.title': 'Fangen wir an?',
   'guide.toSettings': 'Zu den Einstellungen',
-  'guide.pdf': 'Diese Anleitung als PDF herunterladen (auf Spanisch)',
+  'guide.pdf': 'Diese Anleitung als PDF herunterladen',
   'dom.title': 'Lastschriften',
   'dom.sub': 'Was regelmäßig abgebucht wird, wie viel und von welchem Konto. Tippe auf eine, um sie zu ändern.',
   'dom.add': 'Lastschrift hinzufügen',

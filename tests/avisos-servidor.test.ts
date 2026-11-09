@@ -59,6 +59,19 @@ describe('servicio de avisos', () => {
     expect(t.body.replace(/\s/g, ' ')).toBe('1.410,50 € (estimado) · miércoles, 11 de noviembre');
   });
 
+  it('texto del aviso en el idioma de cada móvil', () => {
+    const a = { key: 'k', tipo: 'week', dias: 7, date: '2026-11-17', concept: 'Versicherung', importe: 99, estimated: true };
+    const de = textoAviso(a, 'de');
+    expect(de.title).toBe('💶 In einer Woche: Versicherung');
+    expect(de.body.replace(/\s/g, ' ')).toBe('99,00 € (geschätzt) · Dienstag, 17. November');
+    expect(textoAviso({ ...a, dias: 3 }, 'pl').title).toBe('💶 Za 3 dni: Versicherung');
+    expect(textoAviso({ ...a, dias: 0 }, 'ar').title).toBe('💶 اليوم: Versicherung');
+    expect(textoAviso(a, 'ar').body).toContain('99.00');
+    // Un móvil sin idioma guardado (de antes) o con uno desconocido: en español.
+    expect(textoAviso(a, undefined).title).toBe('💶 Dentro de una semana: Versicherung');
+    expect(textoAviso(a, 'xx').title).toBe('💶 Dentro de una semana: Versicherung');
+  });
+
   it('envía a cada móvil y da de baja los que ya no existen', async () => {
     const store: Record<string, unknown> = {
       finanzas: finanzas([{ date: '2026-11-11', concept: 'Seguro', amount: 1, account: 0, estimated: false }]),

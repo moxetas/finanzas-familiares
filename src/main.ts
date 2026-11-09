@@ -1,7 +1,7 @@
 import './styles/fonts.css';
 import './styles/app.css';
-import { detectLang, setLocale, t } from './i18n';
-import { savedLang, saveLang } from './ui/lang';
+import { currentLocale, detectLang, setLocale, t } from './i18n';
+import { applyDocumentLang, savedLang, saveLang } from './ui/lang';
 import { h } from './ui/dom';
 import { mountApp } from './ui/app';
 import { Store } from './ui/store';
@@ -20,6 +20,7 @@ async function start(): Promise<void> {
       if (!store.firstRun) setLocale('es');
       saveLang(store.firstRun ? detectLang() : 'es');
     }
+    applyDocumentLang(currentLocale());
     applyTheme(store.state.meta.theme ?? 'auto');
     mountApp(root, store);
   } catch (error) {

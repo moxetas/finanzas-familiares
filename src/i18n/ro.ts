@@ -196,7 +196,7 @@ export const ro: Messages = {
   'guide.s7.text': 'Rezumatul îți spune câți bani vei avea la sfârșitul anului. Mementourile, ce plăți urmează. Iar în Setări salvează din când în când o copie: dacă ștergi datele browserului, se pierd.',
   'guide.start.title': 'Începem?',
   'guide.toSettings': 'Mergi la Setări',
-  'guide.pdf': 'Descarcă acest ghid în PDF (în spaniolă)',
+  'guide.pdf': 'Descarcă acest ghid în PDF',
   'dom.title': 'Debitări directe',
   'dom.sub': 'Ce se plătește automat, cât și din ce cont. Atinge una ca s-o modifici.',
   'dom.add': 'Adaugă debitare',

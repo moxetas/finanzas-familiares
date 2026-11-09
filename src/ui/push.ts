@@ -5,8 +5,10 @@
  * avisos de los pagos. Funciona en iPhone (iOS 16.4 o posterior, abriendo la
  * app desde la pantalla de inicio) y en Android.
  * Hace falta tener activada la sincronización (el código de familia).
+ * Cada móvil guarda también su idioma (`lang`), para recibir los avisos en él.
  */
 
+import { currentLocale } from '../i18n';
 import { FIREBASE_DB } from '../storage/sync';
 
 const INFO_LS = 'finanzas-familiares:push';
@@ -92,7 +94,7 @@ export async function enablePush(code: string): Promise<'ok' | 'denied'> {
   sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(pub) });
   const json = sub.toJSON();
   const info: PushInfo = { id: deviceId(), dispositivo: deviceName() };
-  await raw(code, `finanzas-push/${info.id}`, 'PUT', { endpoint: json.endpoint, keys: json.keys, dispositivo: info.dispositivo, desde: Date.now() });
+  await raw(code, `finanzas-push/${info.id}`, 'PUT', { endpoint: json.endpoint, keys: json.keys, dispositivo: info.dispositivo, lang: currentLocale(), desde: Date.now() });
   localStorage.setItem(INFO_LS, JSON.stringify(info));
   return 'ok';
 }
@@ -112,6 +114,13 @@ export async function disablePush(code: string | null): Promise<void> {
   } catch {
     /* nada */
   }
+}
+
+/** Al cambiar de idioma: los avisos de este móvil llegarán en el idioma nuevo. */
+export async function setPushLang(code: string | null, lang: string): Promise<void> {
+  const info = pushInfo();
+  if (!info || !code) return;
+  await raw(code, `finanzas-push/${info.id}/lang`, 'PUT', lang);
 }
 
 export async function testPush(title: string, body: string): Promise<void> {
