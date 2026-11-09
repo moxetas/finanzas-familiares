@@ -195,7 +195,7 @@ textarea {
 
 .skip-link {
   position: absolute;
-  left: 12px;
+  inset-inline-start: 12px;
   top: -100px;
   z-index: 50;
   background: var(--surface);
@@ -304,8 +304,8 @@ textarea {
 
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   z-index: 20;
   background: var(--surface);
@@ -527,7 +527,7 @@ textarea {
   line-height: 1;
   padding: 4px 7px;
   border-radius: 999px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   vertical-align: 2px;
   white-space: nowrap;
   background: var(--surface-3);
@@ -636,7 +636,7 @@ textarea {
   padding: 8px 4px;
   background: none;
   border: 0;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   border-radius: 8px;
   -webkit-tap-highlight-color: transparent;
@@ -662,7 +662,7 @@ textarea {
   place-items: center;
   width: 44px;
   min-height: 56px;
-  margin-left: -8px;
+  margin-inline-start: -8px;
   padding: 0;
   background: none;
   border: 0;
@@ -722,13 +722,13 @@ textarea {
   margin: 0 0 8px;
 }
 .card.is-ordering .plan-table tr[data-sort-group] > th {
-  padding-left: 42px;
+  padding-inline-start: 42px;
 }
 /* El asa va a la izquierda del nombre, que se parte en líneas a su lado. */
 .card.is-ordering .plan-table .drag-handle {
   display: grid;
   position: absolute;
-  left: 2px;
+  inset-inline-start: 2px;
   top: 50%;
   transform: translateY(-50%);
   width: 36px;
@@ -759,7 +759,7 @@ textarea {
   overflow-wrap: anywhere;
 }
 .row-title .chip:first-of-type {
-  margin-left: 8px;
+  margin-inline-start: 8px;
 }
 .row-sub {
   font-size: 0.8125rem;
@@ -778,7 +778,7 @@ textarea {
   line-height: 1.25;
 }
 .group-total {
-  text-align: right;
+  text-align: end;
   font-size: 0.875rem;
   color: var(--muted);
   padding: 8px 32px 0 0;
@@ -808,7 +808,7 @@ textarea {
 .grid-table td {
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
-  text-align: left;
+  text-align: start;
   vertical-align: middle;
 }
 .grid-table thead th {
@@ -819,7 +819,7 @@ textarea {
   border-bottom-color: var(--line-strong);
 }
 .grid-table .n {
-  text-align: right;
+  text-align: end;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -841,7 +841,7 @@ textarea {
 .grid-table th:first-child,
 .grid-table td:first-child {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 1;
   background: var(--surface);
   min-width: 128px;
@@ -866,7 +866,7 @@ textarea {
   overflow-wrap: anywhere;
 }
 .plan-table .chip {
-  margin-left: 4px;
+  margin-inline-start: 4px;
 }
 .plan-table .row-group th {
   background: var(--surface-2);
@@ -877,7 +877,7 @@ textarea {
   letter-spacing: 0.04em;
   padding-top: 6px;
   padding-bottom: 6px;
-  text-align: left;
+  text-align: start;
 }
 .plan-table .row-sum th,
 .plan-table .row-sum td {
@@ -913,7 +913,7 @@ textarea {
   min-height: 40px;
   min-width: 44px;
   padding: 4px 8px;
-  margin-right: -8px;
+  margin-inline-end: -8px;
   border-radius: 8px;
   border: 0;
   background: transparent;
@@ -1165,14 +1165,14 @@ textarea {
   position: relative;
 }
 .amount-wrap input {
-  padding-right: 32px !important;
+  padding-inline-end: 32px !important;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: end;
 }
 .amount-unit {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--muted);
@@ -1293,7 +1293,7 @@ textarea {
   border-top: 1px solid var(--line);
 }
 .sheet-actions .btn-danger {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 @media (min-width: 640px) {
   .sheet {
@@ -1310,8 +1310,8 @@ textarea {
 
 .toasts {
   position: fixed;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
   z-index: 30;
   display: flex;
@@ -1551,15 +1551,15 @@ textarea {
   min-width: 14rem;
   max-width: 24rem;
   white-space: normal;
-  text-align: left;
+  text-align: start;
 }
 .dom-table td,
 .dom-table th {
   vertical-align: top;
-  text-align: left;
+  text-align: start;
 }
 .dom-table td.n {
-  text-align: right;
+  text-align: end;
 }
 .dom-table .line-name {
   display: block;
@@ -1597,7 +1597,7 @@ textarea {
   min-height: 40px;
   font: inherit;
   font-weight: 500;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   text-decoration: underline dotted var(--line-strong);
   text-underline-offset: 4px;
@@ -1747,7 +1747,7 @@ textarea {
   border-radius: var(--radius-s);
   padding: 8px 10px;
   max-width: 100%;
-  text-align: left;
+  text-align: start;
   color: var(--ink-2);
 }
 .cloud-only {
@@ -1758,7 +1758,7 @@ textarea {
 /* Añadir desde foto, captura o PDF */
 .import-steps {
   margin: 0 0 12px;
-  padding-left: 20px;
+  padding-inline-start: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1842,4 +1842,25 @@ textarea {
 }
 .card-buttons {
   margin-top: 0;
+}
+
+/* ── Árabe (de derecha a izquierda) ─────────────────────────────────────
+   Casi todo se da la vuelta solo con las propiedades «inline-start/end».
+   Aquí, lo que no: sombras, flechas y los números que se escriben. */
+html[dir='rtl'] .grid-table th:first-child,
+html[dir='rtl'] .grid-table td:first-child {
+  box-shadow: -1px 0 0 var(--line);
+}
+/* Las gráficas se leen de izquierda a derecha (el tiempo avanza hacia la derecha). */
+html[dir='rtl'] .chart svg {
+  direction: ltr;
+}
+/* Flechas «anterior / siguiente»: apuntan hacia donde se lee. */
+html[dir='rtl'] .icon-dir {
+  transform: scaleX(-1);
+}
+/* El signo de un importe que se escribe se queda delante de la cifra: «−50», no «50−». */
+html[dir='rtl'] input[inputmode='decimal'],
+html[dir='rtl'] .amount-wrap input {
+  unicode-bidi: plaintext;
 }

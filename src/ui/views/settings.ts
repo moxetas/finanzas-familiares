@@ -1,10 +1,13 @@
 /** Ajustes: año, cuentas, conceptos, pagos, copia de seguridad y más. */
 
-import { parseDate } from '../../calc/keys';
+import { parseDate, todayISO } from '../../calc/keys';
 import { moveAccount, setYear } from '../../calc/mutations';
 import { accountOrder, inOrder } from '../../calc/order';
 import type { Item } from '../../calc/types';
-import { fmtDate, fmtDateTime, monthName, t } from '../../i18n';
+import { currentLocale, fmtDate, fmtDateTime, isLang, LANGS, langName, monthName, setLocale, t, type Lang } from '../../i18n';
+import { saveLang } from '../lang';
+import { exampleData } from '../../storage/example';
+import { Sync } from '../../storage/sync';
 import { exportBackup, importBackup } from '../backup-actions';
 import { button, card, chip, empty, money, pageHeader, type ChipTone } from '../components';
 import type { Ctx } from '../context';
@@ -203,6 +206,28 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
         ],
   );
 
+  // ── Idioma ── (de este aparato; al cambiarlo se vuelve a abrir la app ya traducida)
+  const lang = selectField<Lang>({
+    label: t('settings.language'),
+    options: LANGS.map((code) => ({ value: code, label: langName(code) })),
+    value: currentLocale(),
+    hint: t('settings.language.hint'),
+  });
+  lang.select.setAttribute('data-focus-key', 'language');
+  // El título de la tarjeta ya dice «Idioma»: la etiqueta solo la leen los lectores de pantalla.
+  lang.el.querySelector('label')?.classList.add('visually-hidden');
+  lang.select.addEventListener('change', () => {
+    const code = lang.select.value;
+    if (!isLang(code) || code === currentLocale()) return;
+    setLocale(code);
+    // Si aún se ve el ejemplo (y no se comparte), se vuelve a crear en el idioma nuevo.
+    // Los datos de cada uno no se tocan: los nombres que escribe no se traducen.
+    if (ctx.data.config.example && !Sync.savedCode()) ctx.store.setData(exampleData(ctx.data.config.year, todayISO()));
+    if (saveLang(code)) void ctx.store.saved().then(() => location.reload());
+    else ctx.store.setMeta({});
+  });
+  const languageCard = card({ title: t('settings.language'), id: 'idioma' }, lang.el);
+
   // ── Apariencia ──
   const themeName = uid('theme');
   const current = meta.theme ?? 'auto';
@@ -260,6 +285,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     'div',
     { class: 'view view-settings' },
     pageHeader(t('settings.title')),
+    languageCard,
     card(
       { title: t('settings.start.title'), id: 'empezar' },
       h(

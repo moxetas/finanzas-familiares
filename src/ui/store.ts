@@ -36,6 +36,8 @@ export class Store {
   readonly sync: Sync;
   /** El almacenamiento del móvil no responde: datos de la nube, solo en memoria. */
   cloudOnly = false;
+  /** Primera vez que se abre la app en este aparato (no había datos guardados). */
+  firstRun = false;
 
   private constructor(
     private local: LocalStore,
@@ -84,6 +86,7 @@ export class Store {
       data = exampleData(year, todayISO());
     }
     const store = new Store(local, { data, meta, storage: local.kind, persisted: false });
+    store.firstRun = !stored && !cloudOnly;
     if (cloudOnly) {
       store.cloudOnly = true;
       store.sync.memoryMode();
@@ -142,6 +145,11 @@ export class Store {
     this.state = { ...this.state, meta: { ...this.state.meta, ...patch } };
     this.emit();
     void this.persist();
+  }
+
+  /** Espera a que termine de guardarse lo pendiente. */
+  saved(): Promise<void> {
+    return this.queue;
   }
 
   /** Avisos ya mostrados en este aparato. */

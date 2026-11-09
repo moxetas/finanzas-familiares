@@ -7,6 +7,7 @@ import { computeYear } from '../calc/engine';
 import { itemOverrideKey, monthKey, parseDate, realBalanceKey } from '../calc/keys';
 import { round2 } from '../calc/money';
 import type { AppData, Item, Payment } from '../calc/types';
+import { t } from '../i18n';
 
 const item = (name: string, type: Item['type'], amount: number, account: number, extra: Partial<Item> = {}): Item => ({
   name,
@@ -33,46 +34,46 @@ export function exampleData(year: number, today: string): AppData {
   const y = (mmdd: string) => `${year}-${mmdd}`;
 
   const accounts = [
-    { name: 'Cuenta del día a día', initial: 1450 },
-    { name: 'Ahorro', initial: 4200 },
-    { name: 'Hucha de vacaciones', initial: 400 },
+    { name: t('ex.acc.daily'), initial: 1450 },
+    { name: t('ex.acc.savings'), initial: 4200 },
+    { name: t('ex.acc.holiday'), initial: 400 },
   ];
 
   const items: Item[] = [
-    item('Nómina', 'Ingreso', 1980, 0),
-    item('Paga extra de verano', 'Ingreso', 1980, 0, { from_month: 6, to_month: 6 }),
-    item('Paga extra de Navidad', 'Ingreso', 1980, 0, { from_month: 12, to_month: 12 }),
-    item('Alquiler', 'Gasto', 780, 0),
-    item('Luz y gas', 'Gasto', 95, 0),
-    item('Internet y móvil', 'Gasto', 48, 0),
-    item('Supermercado', 'Gasto', 340, 0),
-    item('Transporte', 'Gasto', 55, 0),
-    item('Ocio y salidas', 'Gasto', 130, 0),
-    item('Gimnasio', 'Gasto', 35, 0, { from_month: 1, to_month: 6 }),
-    item('Ahorro del mes', 'Ahorro', 250, 0, { to: 1 }),
-    item('A la hucha de vacaciones', 'Ahorro', 90, 0, { to: 2, from_month: 1, to_month: 7 }),
+    item(t('ex.salary'), 'Ingreso', 1980, 0),
+    item(t('ex.summerBonus'), 'Ingreso', 1980, 0, { from_month: 6, to_month: 6 }),
+    item(t('ex.xmasBonus'), 'Ingreso', 1980, 0, { from_month: 12, to_month: 12 }),
+    item(t('ex.rent'), 'Gasto', 780, 0),
+    item(t('ex.energy'), 'Gasto', 95, 0),
+    item(t('ex.internet'), 'Gasto', 48, 0),
+    item(t('ex.groceries'), 'Gasto', 340, 0),
+    item(t('ex.transport'), 'Gasto', 55, 0),
+    item(t('ex.leisure'), 'Gasto', 130, 0),
+    item(t('ex.gym'), 'Gasto', 35, 0, { from_month: 1, to_month: 6 }),
+    item(t('ex.saving'), 'Ahorro', 250, 0, { to: 1 }),
+    item(t('ex.toHoliday'), 'Ahorro', 90, 0, { to: 2, from_month: 1, to_month: 7 }),
   ];
 
   const payments: Payment[] = [
-    { date: y('01-20'), concept: 'Seguro del coche', amount: 410, account: 0, estimated: false },
-    { date: y('03-05'), concept: 'Impuesto del coche', amount: 95, account: 0, estimated: false },
-    { date: y('04-15'), concept: 'Revisión del coche', amount: 180, account: 0, estimated: true },
-    { date: y('08-05'), concept: 'Viaje de verano', amount: 980, account: 2, estimated: true },
-    { date: y('09-10'), concept: 'Curso de idiomas', amount: 220, account: 0, estimated: false },
-    { date: y('10-15'), concept: 'Seguro de hogar', amount: 190, account: 0, estimated: false },
-    { date: y('12-15'), concept: 'Regalos de Navidad', amount: 300, account: 0, estimated: true },
+    { date: y('01-20'), concept: t('ex.carInsurance'), amount: 410, account: 0, estimated: false },
+    { date: y('03-05'), concept: t('ex.carTax'), amount: 95, account: 0, estimated: false },
+    { date: y('04-15'), concept: t('ex.carService'), amount: 180, account: 0, estimated: true },
+    { date: y('08-05'), concept: t('ex.trip'), amount: 980, account: 2, estimated: true },
+    { date: y('09-10'), concept: t('ex.course'), amount: 220, account: 0, estimated: false },
+    { date: y('10-15'), concept: t('ex.homeInsurance'), amount: 190, account: 0, estimated: false },
+    { date: y('12-15'), concept: t('ex.gifts'), amount: 300, account: 0, estimated: true },
   ];
 
   // Dos pagos cerca de hoy, para que se vean los avisos.
   if (parseDate(today)) {
     payments.push(
-      { date: addDays(today, 4), concept: 'Revisión del dentista', amount: 65, account: 0, estimated: true },
-      { date: addDays(today, 19), concept: 'Revisión de la caldera', amount: 90, account: 0, estimated: false },
+      { date: addDays(today, 4), concept: t('ex.dentist'), amount: 65, account: 0, estimated: true },
+      { date: addDays(today, 19), concept: t('ex.boiler'), amount: 90, account: 0, estimated: false },
     );
     payments.sort((a, b) => (a.date < b.date ? -1 : 1));
   }
 
-  const luz = items.findIndex((i) => i.name === 'Luz y gas');
+  const luz = items.findIndex((i) => i.name === t('ex.energy'));
   const overrides = {
     [itemOverrideKey(monthKey(year, 1), luz)]: 132,
     [itemOverrideKey(monthKey(year, 2), luz)]: 118,
@@ -95,12 +96,12 @@ export function exampleData(year: number, today: string): AppData {
   };
 
   // Un par de apuntes imprevistos en el mes actual (o en enero si el año es otro).
-  const t = parseDate(today);
-  const m = t && t.year === year ? t.month : 1;
+  const now = parseDate(today);
+  const m = now && now.year === year ? now.month : 1;
   const ym = monthKey(year, m);
   data.entries = [
-    { id: 'ejemplo-1', month: ym, concept: 'Reparación del móvil', amount: 89, type: 'Gasto', date: `${ym}-03`, account: 0, note: 'Pantalla rota' },
-    { id: 'ejemplo-2', month: ym, concept: 'Venta de un libro usado', amount: 15, type: 'Ingreso', date: `${ym}-05`, account: 0, note: '' },
+    { id: 'ejemplo-1', month: ym, concept: t('ex.phoneRepair'), amount: 89, type: 'Gasto', date: `${ym}-03`, account: 0, note: t('ex.brokenScreen') },
+    { id: 'ejemplo-2', month: ym, concept: t('ex.book'), amount: 15, type: 'Ingreso', date: `${ym}-05`, account: 0, note: '' },
   ];
 
   return data;

@@ -3,23 +3,66 @@
  * Números, meses y fechas se formatean con `Intl`, no a mano.
  */
 
+import { ar } from './ar';
+import { de } from './de';
+import { en } from './en';
 import { es, type MessageKey, type Messages } from './es';
+import { fr } from './fr';
+import { pl } from './pl';
+import { ro } from './ro';
 
 export type { MessageKey } from './es';
 
 interface Locale {
   /** Etiqueta BCP 47 para `Intl` y `<html lang>`. */
   tag: string;
+  /** Nombre del idioma en ese idioma, para elegirlo. */
+  name: string;
+  dir: 'ltr' | 'rtl';
   currency: string;
   messages: Messages;
 }
 
-/** Idiomas disponibles. Para añadir uno: `en: { tag: 'en-GB', currency: 'EUR', messages: en }`. */
-const LOCALES: Record<string, Locale> = {
-  es: { tag: 'es-ES', currency: 'EUR', messages: es },
-};
+/**
+ * Idiomas disponibles, en el orden en que se ofrecen. Para añadir uno: su
+ * archivo de textos (copia de `es.ts`) y una línea aquí.
+ * En árabe las cifras van con números occidentales (`nu-latn`): así los
+ * importes se escriben y se leen igual que en el banco.
+ */
+const LOCALES = {
+  es: { tag: 'es-ES', name: 'Español', dir: 'ltr', currency: 'EUR', messages: es },
+  de: { tag: 'de-DE', name: 'Deutsch', dir: 'ltr', currency: 'EUR', messages: de },
+  en: { tag: 'en-GB', name: 'English', dir: 'ltr', currency: 'EUR', messages: en },
+  pl: { tag: 'pl-PL', name: 'Polski', dir: 'ltr', currency: 'EUR', messages: pl },
+  ro: { tag: 'ro-RO', name: 'Română', dir: 'ltr', currency: 'EUR', messages: ro },
+  fr: { tag: 'fr-FR', name: 'Français', dir: 'ltr', currency: 'EUR', messages: fr },
+  ar: { tag: 'ar-u-nu-latn', name: 'العربية', dir: 'rtl', currency: 'EUR', messages: ar },
+} satisfies Record<string, Locale>;
 
-let current: Locale = LOCALES['es']!;
+export type Lang = keyof typeof LOCALES;
+export const LANGS = Object.keys(LOCALES) as Lang[];
+
+/** Idioma de una app nueva cuando el teléfono no está en ninguno de los disponibles. */
+const FALLBACK: Lang = 'en';
+
+export const isLang = (code: unknown): code is Lang => typeof code === 'string' && code in LOCALES;
+
+/** Nombre de cada idioma en su propio idioma («Deutsch», «Polski»…). */
+export function langName(code: Lang): string {
+  return LOCALES[code].name;
+}
+
+/** El primero de los idiomas del teléfono que tenga la app (`de-AT` → `de`), o el inglés. */
+export function detectLang(preferred: readonly string[] = typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language])): Lang {
+  for (const tag of preferred) {
+    const base = String(tag).toLowerCase().split(/[-_]/)[0];
+    if (isLang(base)) return base;
+  }
+  return FALLBACK;
+}
+
+let currentLang: Lang = 'es';
+let current: Locale = LOCALES.es;
 let money: Intl.NumberFormat;
 let moneyPlain: Intl.NumberFormat;
 let moneyCompact: Intl.NumberFormat;
@@ -30,6 +73,7 @@ function build(): void {
   money = new Intl.NumberFormat(current.tag, {
     style: 'currency',
     currency: current.currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
     ...grouping,
@@ -40,10 +84,24 @@ function build(): void {
 build();
 
 export function setLocale(code: string): void {
-  current = LOCALES[code] ?? LOCALES['es']!;
+  currentLang = isLang(code) ? code : 'es';
+  current = LOCALES[currentLang];
   build();
-  document.documentElement.lang = current.tag;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = currentLang;
+    document.documentElement.dir = current.dir;
+  }
 }
+
+export function currentLocale(): Lang {
+  return currentLang;
+}
+
+/**
+ * En árabe (de derecha a izquierda), una cifra va aislada para que el signo
+ * y el símbolo € no salten al otro lado: «−250,00» y no «250,00−».
+ */
+const isolate = (s: string): string => (current.dir === 'rtl' ? `\u2066${s}\u2069` : s);
 
 export function localeTag(): string {
   return current.tag;
@@ -60,24 +118,24 @@ const MINUS = '−';
 
 /** `1234.5` → `1.234,50 €`. Con `sign`, los positivos llevan `+`. */
 export function fmtMoney(n: number, opts: { sign?: boolean } = {}): string {
-  const s = money.format(Math.abs(n));
-  if (n < 0) return MINUS + s;
-  if (opts.sign && n > 0) return '+' + s;
-  return s;
+  const s = money.format(Math.abs(n)).replace(/[\u200e\u200f\u061c]/g, '');
+  if (n < 0) return isolate(MINUS + s);
+  if (opts.sign && n > 0) return isolate('+' + s);
+  return isolate(s);
 }
 
 /** Igual pero sin el símbolo de moneda (para tablas). */
 export function fmtNumber(n: number, opts: { sign?: boolean } = {}): string {
   const s = moneyPlain.format(Math.abs(n));
-  if (n < 0) return MINUS + s;
-  if (opts.sign && n > 0) return '+' + s;
-  return s;
+  if (n < 0) return isolate(MINUS + s);
+  if (opts.sign && n > 0) return isolate('+' + s);
+  return isolate(s);
 }
 
 /** Cifra corta para ejes: `12,3 mil`. */
 export function fmtCompact(n: number): string {
   const s = moneyCompact.format(Math.abs(n));
-  return n < 0 ? MINUS + s : s;
+  return isolate(n < 0 ? MINUS + s : s);
 }
 
 /** Importe en un campo de texto: `1234,5` (sin separador de miles ni símbolo). */

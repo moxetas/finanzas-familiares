@@ -15,7 +15,8 @@ export function sum(values: readonly number[]): number {
  * Devuelve `null` si no es un número.
  */
 export function parseAmount(input: string): number | null {
-  let s = input.replace(/[\s  €]/g, '');
+  // Fuera espacios, el símbolo € y las marcas invisibles de dirección del texto (árabe).
+  let s = input.replace(/[\s\u00a0\u202f€\u200e\u200f\u061c\u2066-\u2069]/g, '');
   if (s === '') return null;
   let sign = 1;
   if (s.startsWith('-') || s.startsWith('−')) {

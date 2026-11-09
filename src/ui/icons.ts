@@ -26,11 +26,14 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
+/** Flechas que señalan «anterior / siguiente»: en árabe se dan la vuelta (ver `.icon-dir`). */
+const DIRECTIONAL: ReadonlySet<IconName> = new Set(['prev', 'next', 'arrow']);
+
 export function icon(name: IconName, size = 22): SVGSVGElement {
   return s(
     'svg',
     {
-      class: 'icon',
+      class: DIRECTIONAL.has(name) ? 'icon icon-dir' : 'icon',
       width: size,
       height: size,
       viewBox: '0 0 24 24',
