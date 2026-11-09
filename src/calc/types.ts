@@ -81,6 +81,11 @@ export interface Config {
    * ven en el orden en que se crearon. Ver `accountOrder()`.
    */
   accountOrder?: number[];
+  /**
+   * Orden en que se ven las filas (conceptos) de la tabla de cada mes, por
+   * nombre. Es el mismo para todos los meses y años. Ver `sortedPositions()`.
+   */
+  rowOrder?: string[];
 }
 
 /** Importe cambiado solo para un mes: `"AAAA-MM_i<item>"` o `"AAAA-MM_p<pago>"`. */

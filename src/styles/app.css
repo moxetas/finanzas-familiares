@@ -689,18 +689,54 @@ textarea {
   user-select: none;
   -webkit-user-select: none;
 }
-.sortable.is-sorting > li {
+.sortable.is-sorting [data-sort-group] {
   transition: transform 0.15s ease;
 }
-.sortable.is-sorting > li.is-dragging {
+.sortable.is-sorting .is-dragging {
   transition: none;
-  z-index: 1;
+  position: relative;
+  z-index: 3;
+}
+.sortable.is-sorting li.is-dragging {
   border-radius: 10px;
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
   outline: 1px solid var(--accent-line);
 }
-.sortable.is-sorting > li.is-dragging .drag-handle {
+/* Una fila de tabla no lleva sombra: se marcan sus celdas. */
+.sortable.is-sorting tr.is-dragging > * {
+  background: var(--accent-soft);
+  border-block: 1px solid var(--accent-line);
+}
+.sortable.is-sorting .is-dragging .drag-handle {
   cursor: grabbing;
+  color: var(--accent);
+}
+
+/* «Ordenar» en la tabla del mes: las asas solo se ven en ese modo. */
+.order-hint,
+.plan-table .drag-handle {
+  display: none;
+}
+.card.is-ordering .order-hint {
+  display: block;
+  margin: 0 0 8px;
+}
+.card.is-ordering .plan-table tr[data-sort-group] > th {
+  padding-left: 42px;
+}
+/* El asa va a la izquierda del nombre, que se parte en líneas a su lado. */
+.card.is-ordering .plan-table .drag-handle {
+  display: grid;
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  min-height: 40px;
+  margin: 0;
+}
+.card.is-ordering [aria-pressed='true'] {
+  border-color: var(--accent);
   color: var(--accent);
 }
 .row-btn > .icon {

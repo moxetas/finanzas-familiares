@@ -4,7 +4,7 @@ import { computeYear, entriesOfMonth, type Line, type LineType, type MonthResult
 import { historyCellKey, monthKey, todayISO } from '../../calc/keys';
 import { parseAmount, sum } from '../../calc/money';
 import { setRealBalance } from '../../calc/mutations';
-import { accountOrder, inOrder } from '../../calc/order';
+import { accountOrder, inOrder, moveRow, rowKeys, sortedPositions } from '../../calc/order';
 import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, type MessageKey } from '../../i18n';
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
@@ -16,6 +16,47 @@ import { openImport } from '../import-ai';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
 import { isDebtLabel } from '../../calc/debts';
 import { freeRows, transferRow } from '../extra-rows';
+import { dragHandle, makeSortable } from '../sortable';
+
+/**
+ * Modo «Ordenar» de la tabla del mes: se ven las asas (≡) para mover los
+ * conceptos. Se queda puesto al cambiar de mes, hasta tocar «Listo».
+ */
+let ordering = false;
+
+function orderButton(): HTMLButtonElement {
+  const btn = button(t(ordering ? 'months.order.done' : 'months.order'), {
+    icon: 'sort',
+    kind: 'secondary',
+    focusKey: 'order-rows',
+    onClick: () => {
+      ordering = !ordering;
+      btn.closest('.card')?.classList.toggle('is-ordering', ordering);
+      btn.setAttribute('aria-pressed', String(ordering));
+      const label = btn.querySelector('span');
+      if (label) label.textContent = t(ordering ? 'months.order.done' : 'months.order');
+    },
+  });
+  btn.setAttribute('aria-pressed', String(ordering));
+  return btn;
+}
+
+/**
+ * Hace que las filas de `table` se puedan arrastrar. `shown` da, para cada
+ * grupo, las claves de sus filas en el orden en que se ven.
+ */
+function sortableRows(ctx: Ctx, table: HTMLElement, shown: Map<string, string[]>): void {
+  makeSortable(table, (group, from, to) => {
+    const keys = shown.get(group);
+    if (!keys) return;
+    const { rowOrder: _old, ...rest } = ctx.data.config;
+    void _old;
+    ctx.commit({ ...ctx.data, config: { ...rest, rowOrder: moveRow(ctx.data.config.rowOrder, keys, from, to) } });
+  });
+}
+
+/** Asa para mover la fila `name` (solo se ve en modo «Ordenar»). */
+const rowHandle = (name: string, focusKey: string) => dragHandle(t('months.order.move', { name }), focusKey);
 
 /** Meses de años anteriores guardados en `history`, ordenados: `["2026-02", …]`. */
 export function historyKeys(ctx: Ctx): string[] {
@@ -108,15 +149,20 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
   };
   // Filas del mes; las libres van delante de la partida elegida en Ajustes (o al final) y el traspaso al final.
   const extraOpts = { ym, colNames: m.cols, totalCol: false, noteCol: false };
+  // Filas en el orden elegido con «Ordenar» (`ri` sigue siendo su posición en la hoja).
+  const keys = rowKeys(m.rows.map((r) => r.l));
+  const positions = sortedPositions(keys, ctx.data.config.rowOrder);
+  const shown = new Map([['h', positions.map((ri) => keys[ri]!)]]);
   const historyBody = () => {
     const out: HTMLElement[] = [];
     let placed = false;
-    m.rows.forEach((r, ri) => {
+    positions.forEach((ri) => {
+      const r = m.rows[ri]!;
       if (!placed && isFreeRowsAnchor(r.l, ctx.data.config.freeRowsBefore)) {
         out.push(...freeRows(ctx, extras, extraOpts));
         placed = true;
       }
-      out.push(h('tr', { class: debtRows[ri] ? 'row-line row-debt' : 'row-line' }, h('th', { scope: 'row' }, h('span', { class: 'line-name' }, r.l), debtRows[ri] ? h('span', { class: 'debt-note' }, t('months.debt.info')) : null), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
+      out.push(h('tr', { class: debtRows[ri] ? 'row-line row-debt' : 'row-line', 'data-sort-group': 'h' }, h('th', { scope: 'row' }, rowHandle(r.l, `hmove-${ri}`), h('span', { class: 'line-name' }, r.l), debtRows[ri] ? h('span', { class: 'debt-note' }, t('months.debt.info')) : null), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
     });
     if (!placed) out.push(...freeRows(ctx, extras, extraOpts));
     out.push(transferRow(ctx, extras, extraOpts));
@@ -133,6 +179,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
       h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), tot.map((v) => h('td', { class: 'n strong' }, money(v, { plain: true })))),
     ),
   );
+  sortableRows(ctx, table, shown);
   const fake: MonthResult = {
     month: Number(ym.slice(5, 7)),
     key: ym,
@@ -157,7 +204,8 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     { class: 'view view-months' },
     monthNav(ctx, Number(ym.slice(0, 4)), Number(ym.slice(5, 7))),
     card(
-      { title: m.title, sub: t('months.history.sub'), id: 'plan' },
+      { title: m.title, sub: t('months.history.sub'), id: 'plan', className: ordering ? 'is-ordering' : '', actions: orderButton() },
+      h('p', { class: 'field-hint order-hint' }, t('months.order.hint')),
       h('div', { class: 'table-wrap', 'data-scroll-key': 'plan' }, table),
       h('p', { class: 'field-hint' }, t('months.amountsIn')),
     ),
@@ -316,16 +364,24 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
 
   const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes, order };
   let freePlaced = false;
-  const sectionRows = (label: string, lines: Line[]) => {
-    if (lines.length === 0) return;
+  // Cada bloque se ordena por separado, con el orden elegido con «Ordenar». Los apuntes no se mueven.
+  const shown = new Map<string, string[]>();
+  const sectionRows = (label: string, unsorted: Line[]) => {
+    if (unsorted.length === 0) return;
+    const group = `s${shown.size}`;
+    const keys = rowKeys(unsorted.map((l) => (l.kind === 'entry' ? null : l.name)));
+    const positions = sortedPositions(keys, ctx.data.config.rowOrder);
+    const lines = positions.map((i) => unsorted[i]!);
+    const lineKeys = positions.map((i) => keys[i]!);
+    shown.set(group, lineKeys.filter((k): k is string => k !== null));
     rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, label)));
-    for (const line of lines) {
+    lines.forEach((line, li) => {
       if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
         rows.push(...freeRows(ctx, m.extras, extraOpts));
         freePlaced = true;
       }
-      rows.push(lineRow(ctx, line, month, order, several, hasNotes));
-    }
+      rows.push(lineRow(ctx, line, month, order, several, hasNotes, lineKeys[li] === null ? undefined : group));
+    });
   };
 
   const sections = ctx.data.config.sections ?? [];
@@ -356,34 +412,38 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     ),
   );
 
+  const table = h(
+    'table',
+    { class: 'grid-table plan-table' },
+    h(
+      'thead',
+      null,
+      h(
+        'tr',
+        null,
+        h('th', { scope: 'col' }, t('months.col.item')),
+        order.map((c) => h('th', { scope: 'col', class: 'n' }, accounts[c]?.name ?? '')),
+        several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
+        hasNotes ? h('th', { scope: 'col' }, t('months.col.note')) : null,
+      ),
+    ),
+    h('tbody', null, rows),
+  );
+  sortableRows(ctx, table, shown);
+
   return card(
-    { title: t('months.plan'), sub: t('months.plan.sub'), id: 'plan' },
+    { title: t('months.plan'), sub: t('months.plan.sub'), id: 'plan', className: ordering ? 'is-ordering' : '', actions: orderButton() },
+    h('p', { class: 'field-hint order-hint' }, t('months.order.hint')),
     h(
       'div',
       { class: 'table-wrap', 'data-scroll-key': 'plan' },
-      h(
-        'table',
-        { class: 'grid-table plan-table' },
-        h(
-          'thead',
-          null,
-          h(
-            'tr',
-            null,
-            h('th', { scope: 'col' }, t('months.col.item')),
-            order.map((c) => h('th', { scope: 'col', class: 'n' }, accounts[c]?.name ?? '')),
-            several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
-            hasNotes ? h('th', { scope: 'col' }, t('months.col.note')) : null,
-          ),
-        ),
-        h('tbody', null, rows),
-      ),
+      table,
     ),
     h('p', { class: 'field-hint' }, t('months.amountsIn')),
   );
 }
 
-function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: boolean, hasNotes: boolean): HTMLElement {
+function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: boolean, hasNotes: boolean, sortGroup?: string): HTMLElement {
   const marks = [
     line.estimated ? chip(t('chip.estimated'), 'estimated') : null,
     line.overridden ? chip(t('chip.changed'), 'accent') : null,
@@ -391,8 +451,8 @@ function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: 
   const label = `${line.name}: ${fmtMoney(line.amount)}`;
   return h(
     'tr',
-    { class: `row-line${line.amount === 0 ? ' is-zero' : ''}` },
-    h('th', { scope: 'row' }, h('span', { class: 'line-name' }, line.name), marks),
+    { class: `row-line${line.amount === 0 ? ' is-zero' : ''}`, 'data-sort-group': sortGroup },
+    h('th', { scope: 'row' }, sortGroup ? rowHandle(line.name, `move-${line.kind}-${line.index}`) : null, h('span', { class: 'line-name' }, line.name), marks),
     order.map((c) => {
       const delta = line.deltas[c] ?? 0;
       const involved = delta !== 0 || line.account === c || line.to === c;

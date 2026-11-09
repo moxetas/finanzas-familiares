@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountOrder, addAccount, blankData, computeYear, inOrder, moveAccount, removeAccount, type AppData } from '../src/calc';
+import { accountOrder, addAccount, blankData, computeYear, inOrder, moveAccount, moveRow, removeAccount, rowKeys, sortedPositions, type AppData } from '../src/calc';
 import { sanitizeData } from '../src/storage/sanitize';
 
 function fourAccounts(): AppData {
@@ -64,5 +64,51 @@ describe('quitar una cuenta: filas libres, traspasos y deudas', () => {
     expect(r.overrides).toEqual({ '2027-03_f2_c2': 7, '2027-03_t_c1': 40, '2027-03_t_c2': -40, '2027-03_i0': 9 });
     expect(r.config.debts![0]!.account).toBe(2);
     expect(d.config.debts![0]!.account).toBe(3);
+  });
+});
+
+describe('orden de los conceptos de la tabla de Meses', () => {
+  const show = (names: string[], order?: string[]) => sortedPositions(rowKeys(names), order).map((i) => names[i]);
+
+  it('sin orden guardado, salen como estaban', () => {
+    expect(show(['Luz', 'Agua', 'Gas'])).toEqual(['Luz', 'Agua', 'Gas']);
+  });
+
+  it('sigue el orden guardado y lo nuevo va detrás de la fila que tenía delante', () => {
+    expect(show(['Luz', 'Agua', 'Gas'], ['Gas', 'Luz', 'Agua'])).toEqual(['Gas', 'Luz', 'Agua']);
+    // «Internet» no está en el orden: sigue a «Agua», que tenía delante.
+    expect(show(['Luz', 'Agua', 'Internet', 'Gas'], ['Gas', 'Agua', 'Luz'])).toEqual(['Gas', 'Agua', 'Internet', 'Luz']);
+    // Sin fila delante, al principio.
+    expect(show(['Nuevo', 'Luz', 'Agua'], ['Agua', 'Luz'])).toEqual(['Nuevo', 'Agua', 'Luz']);
+  });
+
+  it('distingue nombres repetidos y deja quietas las filas sin clave', () => {
+    expect(rowKeys(['Otros', 'Luz', 'Otros', null])).toEqual(['Otros', 'Luz', 'Otros#2', null]);
+    const keys = rowKeys(['A', null, 'B']);
+    expect(sortedPositions(keys, ['B', 'A'])).toEqual([2, 0, 1]);
+  });
+
+  it('mover una fila deja en su sitio las de otras tablas', () => {
+    // Orden guardado con conceptos de 2026 (X, Y) y de 2027 (A, B, C) mezclados.
+    const order = ['X', 'A', 'Y', 'B', 'C'];
+    const shown = show(['A', 'B', 'C'], order); // A B C
+    const next = moveRow(order, shown, 2, 0); // C delante
+    expect(next).toEqual(['X', 'C', 'Y', 'A', 'B']);
+    expect(show(['A', 'B', 'C'], next)).toEqual(['C', 'A', 'B']);
+    expect(show(['X', 'Y'], next)).toEqual(['X', 'Y']);
+  });
+
+  it('la primera vez guarda las filas que se ven en el orden nuevo', () => {
+    expect(moveRow(undefined, ['Luz', 'Agua', 'Gas'], 0, 2)).toEqual(['Agua', 'Gas', 'Luz']);
+    // Filas que aún no estaban: entran junto a las que se ven a su lado.
+    expect(moveRow(['Gas'], ['Luz', 'Gas', 'Agua'], 2, 0)).toEqual(['Agua', 'Luz', 'Gas']);
+    expect(moveRow(['Luz'], ['Luz'], 0, 0)).toEqual(['Luz']);
+  });
+
+  it('se guarda en la copia y no cambia el cálculo', () => {
+    const d = fourAccounts();
+    const withOrder = { ...d, config: { ...d.config, rowOrder: ['Luz', ' Agua ', 'Luz', 7] as unknown as string[] } };
+    expect(sanitizeData(JSON.parse(JSON.stringify(withOrder)), 2027, 'A').config.rowOrder).toEqual(['Luz', 'Agua']);
+    expect(computeYear(withOrder)).toEqual(computeYear(d));
   });
 });

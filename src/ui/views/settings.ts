@@ -32,7 +32,7 @@ function monthsLabel(item: Item): string {
 function row(opts: { title: string; sub?: string; chips?: (HTMLElement | null)[]; value?: HTMLElement; onClick: () => void; label?: string; focusKey: string; handle?: HTMLElement }): HTMLElement {
   return h(
     'li',
-    opts.handle ? { class: 'sortable-row' } : null,
+    opts.handle ? { class: 'sortable-row', 'data-sort-group': 'accounts' } : null,
     opts.handle ?? null,
     h(
       'button',
@@ -78,7 +78,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
       }),
     ),
   );
-  if (several) makeSortable(accountList, (from, to) => ctx.commit(moveAccount(ctx.data, from, to)));
+  if (several) makeSortable(accountList, (_group, from, to) => ctx.commit(moveAccount(ctx.data, from, to)));
   const accountsCard = card(
     {
       title: t('settings.accounts'),

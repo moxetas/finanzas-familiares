@@ -21,6 +21,7 @@ const PATHS = {
   install: ['M12 3v11', 'M8 10l4 4 4-4', 'M5 15v5h14v-5'],
   info: ['M12 11v6', 'M12 7.5v.5', 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
   arrow: ['M5 12h14', 'M13 6l6 6-6 6'],
+  sort: ['M8 20V4', 'M4 8l4-4 4 4', 'M16 4v16', 'M12 16l4 4 4-4'],
 } as const;
 
 export type IconName = keyof typeof PATHS;

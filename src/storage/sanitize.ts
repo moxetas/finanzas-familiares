@@ -7,6 +7,7 @@
 
 import { parseDate } from '../calc/keys';
 import { round2 } from '../calc/money';
+import { MAX_ROW_ORDER } from '../calc/order';
 import type { BtcTrade, SalaryPerson, Account, AppData, Debt, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
 
 const ITEM_TYPES: readonly ItemType[] = ['Ingreso', 'Gasto', 'Ahorro'];
@@ -169,6 +170,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
   const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);
   const accountOrder = arr(cfg['accountOrder']).filter((x): x is number => Number.isInteger(x) && (x as number) >= 0 && (x as number) < accounts.length);
   const orderOk = accountOrder.length > 0 && new Set(accountOrder).size === accountOrder.length;
+  const rowOrder = [...new Set(arr(cfg['rowOrder']).map((x) => (typeof x === 'string' ? x.trim().slice(0, 130) : '')).filter(Boolean))].slice(0, MAX_ROW_ORDER);
   const salaries = sanitizeSalaries(cfg['salaries']);
   const btc = sanitizeBtc(cfg['btc']);
 
@@ -184,6 +186,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
       ...(freeRowsBefore ? { freeRowsBefore } : {}),
       ...(orderOk ? { accountOrder } : {}),
+      ...(rowOrder.length ? { rowOrder } : {}),
       ...(salaries.length ? { salaries } : {}),
       ...(btc.length ? { btc } : {}),
     },

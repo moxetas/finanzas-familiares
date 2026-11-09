@@ -1,11 +1,13 @@
 /**
- * Lista que se ordena arrastrando el asa (≡) de cada fila, como al ordenar un
- * menú. Funciona con el dedo y con el ratón; con el teclado, las flechas ↑ ↓
- * sobre el asa mueven la fila un puesto.
+ * Filas que se ordenan arrastrando su asa (≡), como al ordenar un menú.
+ * Funciona con el dedo y con el ratón; con el teclado, las flechas ↑ ↓ sobre
+ * el asa mueven la fila un puesto.
  *
- * Mientras se arrastra solo se mueven las filas en pantalla; al soltar se
- * llama a `onMove(desde, hasta)` (posiciones en la lista) y la vista se vuelve
- * a dibujar con el orden nuevo.
+ * Cada fila que se puede mover lleva `data-sort-group="<grupo>"` y un asa
+ * dentro. Una fila solo se mueve entre las de su mismo grupo (una lista, o un
+ * bloque de una tabla). Mientras se arrastra solo se mueven las filas en
+ * pantalla; al soltar se llama a `onMove(grupo, desde, hasta)` (posiciones
+ * dentro del grupo) y la vista se vuelve a dibujar con el orden nuevo.
  */
 
 import { h } from './dom';
@@ -23,28 +25,44 @@ export function dragHandle(label: string, focusKey: string): HTMLButtonElement {
   );
 }
 
-export function makeSortable(list: HTMLElement, onMove: (from: number, to: number) => void): void {
+/** Marca `el` como fila del grupo `group`. */
+export function sortItem<T extends HTMLElement>(el: T, group: string): T {
+  el.dataset['sortGroup'] = group;
+  return el;
+}
+
+/** La fila del asa y las de su grupo, en el orden en que se ven. */
+function groupOf(list: HTMLElement, handle: Element): { item: HTMLElement; items: HTMLElement[]; group: string } | null {
+  const item = handle.closest<HTMLElement>('[data-sort-group]');
+  if (!item || !list.contains(item)) return null;
+  const group = item.dataset['sortGroup']!;
+  const items = [...list.querySelectorAll<HTMLElement>('[data-sort-group]')].filter((el) => el.dataset['sortGroup'] === group);
+  return { item, items, group };
+}
+
+export function makeSortable(list: HTMLElement, onMove: (group: string, from: number, to: number) => void): void {
   list.classList.add('sortable');
 
   list.addEventListener('keydown', (ev) => {
     const handle = (ev.target as Element).closest?.('[data-drag-handle]');
     if (!handle || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown')) return;
-    const items = [...list.children];
-    const from = items.indexOf(handle.closest('li')!);
+    const found = groupOf(list, handle);
+    if (!found) return;
+    const { items, group } = found;
+    const from = items.indexOf(found.item);
     const to = from + (ev.key === 'ArrowUp' ? -1 : 1);
     if (from < 0 || to < 0 || to >= items.length) return;
     ev.preventDefault();
-    onMove(from, to);
+    onMove(group, from, to);
   });
 
   list.addEventListener('pointerdown', (ev) => {
     const handle = (ev.target as Element).closest?.<HTMLElement>('[data-drag-handle]');
     if (!handle || !ev.isPrimary || ev.button !== 0) return;
-    const item = handle.closest('li');
-    if (!item) return;
+    const found = groupOf(list, handle);
+    if (!found) return;
+    const { item, items, group } = found;
     ev.preventDefault();
-
-    const items = [...list.children] as HTMLElement[];
     const from = items.indexOf(item);
     const scroll0 = window.scrollY;
     // Posiciones de partida, en coordenadas de la página (no cambian al desplazar).
@@ -107,7 +125,7 @@ export function makeSortable(list: HTMLElement, onMove: (from: number, to: numbe
       list.classList.remove('is-sorting');
       item.classList.remove('is-dragging');
       for (const el of items) el.style.transform = '';
-      if (e.type === 'pointerup' && to !== from) onMove(from, to);
+      if (e.type === 'pointerup' && to !== from) onMove(group, from, to);
     };
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', end);
