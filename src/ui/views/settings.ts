@@ -20,6 +20,7 @@ import { canPromptInstall, isIOS, isStandalone, promptInstall } from '../install
 import { loadExample, startBlank } from '../notices';
 import { syncCard } from '../sync-card';
 import { applyTheme } from '../theme';
+import { BACKDROPS, backdropUrl, DEFAULT_BACKDROP, isBackdropChoice, NO_BACKDROP, PER_TAB } from '../backdrop';
 import { toast } from '../toast';
 import { selectField } from '../fields';
 import { openImport } from '../import-ai';
@@ -264,6 +265,45 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     ),
   );
 
+  // ── Fondo ── (foto de cabecera; cada móvil el suyo)
+  const bdName = uid('backdrop');
+  const bdCurrent = isBackdropChoice(meta.backdrop) ? meta.backdrop : DEFAULT_BACKDROP;
+  const tile = (id: string, label: string, thumb: HTMLElement) => {
+    const inputId = uid('bd');
+    return h(
+      'div',
+      { class: 'backdrop-option' },
+      h('input', {
+        type: 'radio',
+        name: bdName,
+        id: inputId,
+        value: id,
+        class: 'visually-hidden',
+        checked: id === bdCurrent,
+        'data-focus-key': `backdrop-${id}`,
+        onchange: () => ctx.store.setMeta({ backdrop: id }),
+      }),
+      h('label', { for: inputId }, thumb, h('span', { class: 'backdrop-name' }, label)),
+    );
+  };
+  // La imagen va por CSSOM (style.backgroundImage): la política de seguridad no deja atributos style.
+  const mini = (id: string) => {
+    const el = h('span', { class: 'backdrop-thumb' });
+    el.style.backgroundImage = `url("${backdropUrl(id, true)}")`;
+    return el;
+  };
+  const backdropCard = card(
+    { title: t('settings.backdrop'), sub: t('settings.backdrop.sub'), id: 'fondo' },
+    h(
+      'fieldset',
+      { class: 'backdrop-grid' },
+      h('legend', { class: 'visually-hidden' }, t('settings.backdrop')),
+      BACKDROPS.map((b) => tile(b.id, t(b.label), mini(b.id))),
+      tile(PER_TAB, t('backdrop.tabs'), h('span', { class: 'backdrop-thumb backdrop-mosaic' }, ['atardecer', 'azul', 'calma', 'hogar'].map((id) => mini(id)))),
+      tile(NO_BACKDROP, t('backdrop.none'), h('span', { class: 'backdrop-thumb backdrop-empty' })),
+    ),
+  );
+
   // ── Datos ──
   const dataCard = card(
     { title: t('settings.data'), id: 'data' },
@@ -319,6 +359,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     shareCard,
     installCard,
     themeCard,
+    backdropCard,
     dataCard,
     privacyCard,
   );

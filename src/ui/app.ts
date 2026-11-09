@@ -8,6 +8,7 @@ import { t, type MessageKey } from '../i18n';
 import { createCtx, type Ctx } from './context';
 import { clear, h } from './dom';
 import { icon, type IconName } from './icons';
+import { backdropFor, paintBackdrop } from './backdrop';
 import { listenInstall } from './install';
 import { exampleBanner } from './notices';
 import type { Store } from './store';
@@ -73,8 +74,14 @@ export function mountApp(root: HTMLElement, store: Store): void {
     h('span', { class: 'topbar-year', id: 'topbar-year' }),
   );
 
+  // Foto de cabecera (decorativa), detrás del título de cada pestaña.
+  const hero = h('div', { class: 'hero', 'aria-hidden': 'true', hidden: true });
+
   clear(root);
-  root.append(h('a', { href: '#main', class: 'skip-link' }, t('nav.main')), header, banner, main, tabs, toasts);
+  root.append(h('a', { href: '#main', class: 'skip-link' }, t('nav.main')), header, hero, banner, main, tabs, toasts);
+  const paintHero = () => paintBackdrop(hero, root, main, backdropFor(store.state.meta.backdrop, parseRoute(location.hash).name));
+  window.addEventListener('resize', paintHero);
+  void document.fonts?.ready.then(paintHero);
 
   let lastRoute = '';
 
@@ -116,6 +123,7 @@ export function mountApp(root: HTMLElement, store: Store): void {
     if (store.cloudOnly) banner.append(h('aside', { class: 'notice cloud-only' }, h('p', null, t('cloudOnly.text'))));
     clear(main);
     main.append(view);
+    paintHero();
     document.getElementById('topbar-year')!.textContent = String(store.state.data.config.year);
 
     // Domiciliaciones y Sueldos solo salen si se usan (o si se activan en Ajustes): menos pestañas al empezar.

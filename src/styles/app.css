@@ -1874,3 +1874,95 @@ html[dir='rtl'] input[inputmode='decimal'],
 html[dir='rtl'] .amount-wrap input {
   unicode-bidi: plaintext;
 }
+
+/* ── Foto de cabecera (Ajustes → Fondo) ──────────────────────────────────
+   Detrás del título de cada pestaña; se funde con el color de la página.
+   Las tarjetas van encima, con su fondo de siempre. Ver src/ui/backdrop.ts. */
+.hero {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 0;
+  background-color: #0b1a2e;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent);
+  mask-image: linear-gradient(to bottom, #000 50%, transparent);
+}
+/* Oscurece arriba, donde va el título en blanco. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgb(4 10 18 / 0.6), rgb(4 10 18 / 0.3) 55%, rgb(4 10 18 / 0));
+}
+.has-hero .banner-slot,
+.has-hero .main {
+  position: relative;
+  z-index: 1;
+}
+.has-hero .view > .page-head .page-title,
+.has-hero .view > .page-head .sub {
+  color: #fff;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.6);
+}
+.has-hero .view > .page-head .sub {
+  color: rgb(255 255 255 / 0.9);
+}
+/* Hueco encima del título para que se vea la foto, como una portada. */
+.has-hero .view > .page-head {
+  padding-top: clamp(64px, 18vw, 120px);
+}
+
+/* Elegir el fondo: miniaturas. */
+.backdrop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.backdrop-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  text-align: center;
+}
+.backdrop-thumb {
+  display: block;
+  aspect-ratio: 3 / 2;
+  border-radius: 10px;
+  background-color: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  border: 2px solid var(--line);
+  overflow: hidden;
+}
+.backdrop-mosaic {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.backdrop-mosaic > .backdrop-thumb {
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+.backdrop-empty {
+  background-image: linear-gradient(135deg, var(--surface-2) 45%, var(--line-strong) 45%, var(--line-strong) 55%, var(--surface-2) 55%);
+}
+.backdrop-option input:checked + label .backdrop-thumb {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.backdrop-option input:checked + label {
+  color: var(--accent);
+  font-weight: 600;
+}
+.backdrop-option input:focus-visible + label .backdrop-thumb {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}

@@ -34,6 +34,8 @@ export function serviceWorker(): Plugin {
         .filter((f) => f !== 'sw.js' && !f.endsWith('.map') && f !== '.nojekyll')
         // Los iconos grandes solo se usan al instalar; no hace falta guardarlos para usar sin conexión.
         .filter((f) => !/^icons\/icon-(512|maskable-512)\.png$/.test(f) && !f.endsWith('.pdf'))
+        // Fondos: solo el de por defecto y las miniaturas; los demás se guardan al usarlos (ver sw-template.js).
+        .filter((f) => !/^themes\/(?!azul\.jpg$)[a-z]+\.jpg$/.test(f))
         .sort();
       const hash = createHash('sha256');
       for (const f of files) hash.update(f).update(readFileSync(join(outDir, f)));

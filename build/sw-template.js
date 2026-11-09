@@ -7,6 +7,9 @@
 const VERSION = '__VERSION__';
 const PREFIX = 'finanzas-familiares-';
 const CACHE = PREFIX + VERSION;
+// Fondos guardados al usarlos. No empieza por PREFIX, así no se borra al actualizar la app.
+// Si se cambia una imagen de public/themes, sube el número.
+const THEMES_CACHE = 'finanzas-fondos-v1';
 const PRECACHE = __PRECACHE__;
 
 self.addEventListener('install', (event) => {
@@ -43,6 +46,24 @@ self.addEventListener('fetch', (event) => {
   if (req.mode === 'navigate') {
     event.respondWith(
       caches.match(new URL('index.html', self.registration.scope).href, { cacheName: CACHE }).then((hit) => hit || fetch(req)),
+    );
+    return;
+  }
+
+  // Fondos que no van en la copia inicial: se guardan la primera vez que se ven.
+  if (url.pathname.includes('/themes/')) {
+    event.respondWith(
+      caches.match(req, { ignoreSearch: true }).then(
+        (hit) =>
+          hit ||
+          fetch(req).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              event.waitUntil(caches.open(THEMES_CACHE).then((c) => c.put(req, copy)));
+            }
+            return res;
+          }),
+      ),
     );
     return;
   }
