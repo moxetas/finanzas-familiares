@@ -19,12 +19,39 @@ import { familyKey, sealAll, unsealAll } from './cipher';
 
 /**
  * Dos bases de datos (las mismas que Menú familiar):
- * - la de siempre, para los códigos creados antes de publicar la app (los de la familia de Moxetas);
+ * - la de la familia, para los códigos creados antes de publicar la app (los de la familia de Moxetas);
  * - la pública, para los códigos nuevos, que empiezan por «1» (los de antes nunca llevan «1»).
  * Así lo que haga la gente que descarga la app nunca llena la base de la familia.
+ * Los códigos de antes estaban en otra base (`FIREBASE_DB_ANTIGUA`): la primera vez, sus datos
+ * se copian solos a la de la familia (ver `mudanza`).
  */
-export const FIREBASE_DB_FAMILIA = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
+export const FIREBASE_DB_FAMILIA = 'https://moxetas-casa-default-rtdb.europe-west1.firebasedatabase.app';
 export const FIREBASE_DB_PUBLICA = 'https://moxetas-familias-default-rtdb.europe-west1.firebasedatabase.app';
+export const FIREBASE_DB_ANTIGUA = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
+
+/** Lo que no se copia en la mudanza: los avisos del sistema de antes. */
+const NO_SE_MUDA = ['push', 'vapid', 'avisados', 'servidor', 'finanzas-push', 'finanzas-avisados', 'finanzas-servidor'];
+
+/**
+ * Copia (tal cual, cifrado) lo que tenía la familia en la base antigua a la suya, una sola vez:
+ * la marca `mudado` dice que ya está hecho. Va en una sola escritura, junto con la marca, así
+ * nunca hay una base nueva a medias. Los códigos nuevos («1…») no tienen nada que mudar.
+ */
+export async function mudanza(code: string, fetchFn: typeof fetch = fetch): Promise<void> {
+  if (dbFor(code) !== FIREBASE_DB_FAMILIA) return;
+  const done = await fetchFn(`${FIREBASE_DB_FAMILIA}/familias/${code}/mudado.json`, { cache: 'no-store' });
+  if (done.status === 401 || done.status === 403) throw new DeniedError();
+  if (!done.ok) throw new Error(String(done.status));
+  if ((await done.json()) !== null) return;
+  const old = await fetchFn(`${FIREBASE_DB_ANTIGUA}/familias/${code}.json`, { cache: 'no-store' });
+  if (!old.ok) throw new Error(String(old.status));
+  const data = ((await old.json()) ?? {}) as Record<string, unknown>;
+  for (const k of NO_SE_MUDA) delete data[k];
+  const put = await fetchFn(`${FIREBASE_DB_FAMILIA}/familias/${code}.json`, { method: 'PATCH', body: JSON.stringify({ ...data, mudado: Date.now() }) });
+  if (!put.ok) throw new Error(String(put.status));
+  // Las claves de los avisos de antes estaban sin proteger en la base antigua: ya no hacen falta.
+  void fetchFn(`${FIREBASE_DB_ANTIGUA}/familias/${code}/vapid.json`, { method: 'DELETE' }).catch(() => null);
+}
 
 /** Base de datos de un código de familia. */
 export function dbFor(code: string): string {
@@ -173,6 +200,14 @@ export class Sync {
   private pullTimer: ReturnType<typeof setTimeout> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private busy: Promise<void> = Promise.resolve();
+  /** Códigos ya mudados desde la base antigua (ver `mudanza`). */
+  private moved = new Set<string>();
+
+  private async ensureMoved(code: string): Promise<void> {
+    if (this.moved.has(code)) return;
+    await mudanza(code);
+    this.moved.add(code);
+  }
 
   constructor(private host: SyncHost) {
     try {
@@ -326,6 +361,7 @@ export class Sync {
     this.setStatus('connecting');
     let remote: Flat;
     try {
+      await this.ensureMoved(code);
       remote = await this.fetchRemote(code);
       // Familia que aún no ha pasado al cifrado: se toman sus datos de antes.
       if (Object.keys(remote).length === 0) remote = await this.fetchRemote(code, OLD_PATH);
@@ -388,7 +424,8 @@ export class Sync {
       const patch = diffFlat(info.base, cur);
       if (Object.keys(patch).length === 0) return;
       try {
-        if (info.v !== 2) return; // primero el paso a cifrado (lo hace pull)
+        // Primero el paso a cifrado y la mudanza a la base de la familia (los hace pull)
+        if (info.v !== 2 || !this.moved.has(info.code)) return;
         const res = await fetch(this.url(), { method: 'PATCH', body: JSON.stringify(await this.sealed(info.code, patch)) });
         if (res.status === 401 || res.status === 403) {
           this.setStatus('denied');
@@ -418,6 +455,7 @@ export class Sync {
         // Mandan los datos de la nube: lo de este móvil no cuenta como cambios a enviar.
         const cloudFirst = this.cloudWins;
         if (cloudFirst) info.base = flatten(this.host.getData());
+        await this.ensureMoved(info.code);
         if (info.v !== 2) {
           await this.migrate(info);
           if (cloudFirst) this.cloudDone();

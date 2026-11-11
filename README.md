@@ -63,7 +63,7 @@ Cómo funcionan los avisos con la app cerrada ([`src/storage/avisos-cola.ts`](sr
 
 Cada aviso se muestra una vez (se recuerda por fecha, concepto y tipo). Con el ejemplo ficticio no se avisa de nada. La regla está en [`src/calc/reminders.ts`](src/calc/reminders.ts), con pruebas.
 
-**Dos bases de datos**: los códigos de familia de antes siguen en la base de siempre; los nuevos empiezan por «1» y van a la base pública (`src/storage/sync.ts`). Las reglas de las dos están en [avisos-familia](https://github.com/moxetas/avisos-familia).
+**Dos bases de datos**: los códigos de familia de antes siguen en la base de siempre; los nuevos empiezan por «1» y van a la base pública (`src/storage/sync.ts`). La base de la familia es nueva (`moxetas-casa`): la primera vez que un móvil abre la app actualizada, copia solo, tal cual y cifrado, lo que la familia tenía en la base antigua (`menu-familiar-a2424`). Las reglas de las dos están en [avisos-familia](https://github.com/moxetas/avisos-familia).
 
 ## Instalarla en el móvil
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeYear } from '../src/calc/engine';
 import type { AppData } from '../src/calc/types';
 import { parseBackup, serializeBackup } from '../src/storage/backup';
-import { dbFor, diffFlat, FIREBASE_DB_FAMILIA, FIREBASE_DB_PUBLICA, flatten, fromRemote, mergeFlat, newCode, readCode, toRemote, unflatten } from '../src/storage/sync';
+import { dbFor, diffFlat, FIREBASE_DB_ANTIGUA, FIREBASE_DB_FAMILIA, FIREBASE_DB_PUBLICA, flatten, fromRemote, mergeFlat, mudanza, newCode, readCode, toRemote, unflatten } from '../src/storage/sync';
 
 function data(): AppData {
   return {
@@ -101,5 +101,40 @@ describe('sincronización', () => {
     expect(dbFor('abcd-efgh-jkmn-pqrs-tuvw')).toBe(FIREBASE_DB_FAMILIA);
     // Copiado a mano con «l» en vez de «1»
     expect(readCode('labc-defg-hjkm-npqr-stuv')).toBe('1abc-defg-hjkm-npqr-stuv');
+  });
+  it('la mudanza copia una vez lo de la base antigua, sin los avisos de antes', async () => {
+    const code = 'abcd-efgh-jkmn-pqrs-tuvw';
+    const calls: [string, string][] = [];
+    let moved: unknown = null;
+    const fake = (async (url: string, init?: RequestInit) => {
+      calls.push([init?.method ?? 'GET', url]);
+      if (url.endsWith('/mudado.json')) return new Response(JSON.stringify(moved));
+      if (url.startsWith(FIREBASE_DB_ANTIGUA)) return new Response(JSON.stringify({ 'finanzas-c': { cfg: 'c1.x' }, 'menu-c': { a: 'c1.y' }, vapid: { privateKey: 'k' }, push: {} }));
+      moved = 1;
+      return new Response(JSON.stringify({}));
+    }) as typeof fetch;
+    await mudanza(code, fake);
+    const put = calls.find(([m]) => m === 'PATCH')!;
+    expect(put[1]).toBe(`${FIREBASE_DB_FAMILIA}/familias/${code}.json`);
+    calls.length = 0;
+    await mudanza(code, fake);
+    expect(calls.map(([m]) => m)).toEqual(['GET']); // ya estaba hecha
+    calls.length = 0;
+    await mudanza('1bcd-efgh-jkmn-pqrs-tuvw', fake);
+    expect(calls).toHaveLength(0); // los códigos nuevos no tienen nada que mudar
+  });
+  it('la mudanza no copia los avisos de antes', async () => {
+    let body = '';
+    const fake = (async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PATCH') body = String(init.body);
+      if (url.endsWith('/mudado.json')) return new Response('null');
+      return new Response(JSON.stringify({ 'finanzas-c': { cfg: 'c1.x' }, vapid: { privateKey: 'k' }, 'finanzas-push': {} }));
+    }) as typeof fetch;
+    await mudanza('abcd-efgh-jkmn-pqrs-tuvw', fake);
+    const sent = JSON.parse(body) as Record<string, unknown>;
+    expect(sent['finanzas-c']).toEqual({ cfg: 'c1.x' });
+    expect(sent['vapid']).toBeUndefined();
+    expect(sent['finanzas-push']).toBeUndefined();
+    expect(typeof sent['mudado']).toBe('number');
   });
 });
