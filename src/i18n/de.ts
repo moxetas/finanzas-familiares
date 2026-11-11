@@ -408,6 +408,7 @@ export const de: Messages = {
   'settings.privacy.storage.memory': 'Dieser Browser erlaubt kein Speichern: Die Daten gehen beim Schließen verloren. Exportiere vorher eine Sicherung.',
   'settings.privacy.persisted': 'Der Browser löscht diese Daten nicht wegen Platzmangels.',
   'settings.version': 'Version {version}',
+  'settings.privacy.policy': 'Datenschutzerklärung (Spanisch und Englisch)',
 
   'field.name': 'Name',
   'field.initial': 'Anfangsstand (1. Januar)',

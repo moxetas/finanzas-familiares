@@ -408,6 +408,7 @@ export const ro: Messages = {
   'settings.privacy.storage.memory': 'Acest browser nu permite salvarea datelor: se vor pierde la închidere. Exportă o copie înainte să ieși.',
   'settings.privacy.persisted': 'Browserul nu va șterge aceste date din lipsă de spațiu.',
   'settings.version': 'Versiunea {version}',
+  'settings.privacy.policy': 'Politica de confidențialitate (spaniolă și engleză)',
 
   'field.name': 'Nume',
   'field.initial': 'Sold inițial (1 ianuarie)',

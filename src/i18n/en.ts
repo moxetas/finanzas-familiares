@@ -408,6 +408,7 @@ export const en: Messages = {
   'settings.privacy.storage.memory': 'This browser does not allow saving data: it will be lost when you close it. Export a backup before leaving.',
   'settings.privacy.persisted': 'The browser will not delete this data for lack of space.',
   'settings.version': 'Version {version}',
+  'settings.privacy.policy': 'Privacy policy',
 
   'field.name': 'Name',
   'field.initial': 'Opening balance (1 January)',

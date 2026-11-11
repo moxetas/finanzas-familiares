@@ -408,6 +408,7 @@ export const fr: Messages = {
   'settings.privacy.storage.memory': 'Ce navigateur ne permet pas d’enregistrer : les données seront perdues à la fermeture. Exportez une sauvegarde avant de partir.',
   'settings.privacy.persisted': 'Le navigateur n’effacera pas ces données par manque de place.',
   'settings.version': 'Version {version}',
+  'settings.privacy.policy': 'Politique de confidentialité (espagnol et anglais)',
 
   'field.name': 'Nom',
   'field.initial': 'Solde initial (1er janvier)',

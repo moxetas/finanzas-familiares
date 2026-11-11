@@ -410,6 +410,7 @@ export const es = {
   'settings.privacy.storage.memory': 'Este navegador no deja guardar datos: se perderán al cerrar. Exporta una copia antes de salir.',
   'settings.privacy.persisted': 'El navegador no borrará estos datos por falta de espacio.',
   'settings.version': 'Versión {version}',
+  'settings.privacy.policy': 'Política de privacidad',
 
   'field.name': 'Nombre',
   'field.initial': 'Saldo inicial (1 de enero)',

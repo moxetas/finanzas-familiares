@@ -408,6 +408,7 @@ export const pl: Messages = {
   'settings.privacy.storage.memory': 'Ta przeglądarka nie pozwala zapisywać danych: przepadną po zamknięciu. Przed wyjściem wyeksportuj kopię.',
   'settings.privacy.persisted': 'Przeglądarka nie usunie tych danych z braku miejsca.',
   'settings.version': 'Wersja {version}',
+  'settings.privacy.policy': 'Polityka prywatności (po hiszpańsku i angielsku)',
 
   'field.name': 'Nazwa',
   'field.initial': 'Saldo początkowe (1 stycznia)',

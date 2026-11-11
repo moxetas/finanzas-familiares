@@ -319,6 +319,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     h('p', null, t('settings.privacy.text')),
     h('p', { class: storage === 'memory' ? 'warn-line' : 'meta-line' }, t(`settings.privacy.storage.${storage}`)),
     persisted ? h('p', { class: 'meta-line' }, t('settings.privacy.persisted')) : null,
+    h('p', null, h('a', { href: 'privacidad.html', target: '_blank', rel: 'noopener' }, t('settings.privacy.policy'))),
     h('p', { class: 'meta-line' }, t('settings.version', { version: __APP_VERSION__ })),
   );
 

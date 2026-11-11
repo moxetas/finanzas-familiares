@@ -408,6 +408,7 @@ export const ar: Messages = {
   'settings.privacy.storage.memory': 'هذا المتصفح لا يسمح بحفظ البيانات: ستضيع عند الإغلاق. صدّر نسخة قبل الخروج.',
   'settings.privacy.persisted': 'لن يحذف المتصفح هذه البيانات بسبب نقص المساحة.',
   'settings.version': 'الإصدار {version}',
+  'settings.privacy.policy': 'سياسة الخصوصية (بالإسبانية والإنجليزية)',
 
   'field.name': 'الاسم',
   'field.initial': 'الرصيد الافتتاحي (1 يناير)',
