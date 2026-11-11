@@ -109,6 +109,8 @@ function pushBlock(ctx: Ctx): HTMLElement {
         onClick: async () => {
           try {
             const r = await enablePush(code);
+            // Se ponen ya en la cola los avisos de los próximos meses.
+            if (r === 'ok') await ctx.store.scheduleCola(true, 0);
             toast(r === 'ok' ? t('push.toast.on') : t('push.toast.denied'));
             if (r === 'ok') void testPush(t('push.test.title'), t('push.test.body')).catch(() => undefined);
           } catch (e) {

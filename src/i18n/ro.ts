@@ -319,7 +319,7 @@ export const ro: Messages = {
   'push.needSync': 'Mementourile cu aplicația închisă vin din conturile sincronizate: activează mai întâi sincronizarea cu codul de familie.',
   'push.goSync': 'Mergi la sincronizare',
   'push.server.checking': 'Se verifică serviciul de mementouri…',
-  'push.server.never': 'Serviciul de mementouri nu a rulat încă. Dacă peste o oră e tot așa, trebuie adăugat codul de familie în GitHub (secretul FAMILIA_CODIGO).',
+  'push.server.never': 'Serviciul de mementouri nu a rulat încă. Ar trebui să ruleze în fiecare oră: dacă peste o oră e tot așa, ceva nu merge bine.',
   'push.server.last': 'Serviciul de mementouri a rulat ultima dată {ago}.',
   'push.server.late': 'Ar trebui să ruleze în fiecare oră: ceva nu e în regulă.',
   'push.ago.now': 'acum un moment',

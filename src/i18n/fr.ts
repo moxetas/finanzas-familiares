@@ -319,7 +319,7 @@ export const fr: Messages = {
   'push.needSync': 'Les rappels avec l’app fermée viennent des comptes synchronisés : activez d’abord la synchronisation avec votre code famille.',
   'push.goSync': 'Aller à la synchronisation',
   'push.server.checking': 'Vérification du service de rappels…',
-  'push.server.never': 'Le service de rappels n’est pas encore passé. Si c’est toujours le cas dans une heure, il faut ajouter le code famille dans GitHub (secret FAMILIA_CODIGO).',
+  'push.server.never': 'Le service de rappels n’est pas encore passé. Il devrait passer toutes les heures : si c’est toujours le cas dans une heure, quelque chose ne va pas.',
   'push.server.last': 'Le service de rappels est passé pour la dernière fois {ago}.',
   'push.server.late': 'Il devrait passer toutes les heures : quelque chose ne va pas.',
   'push.ago.now': 'à l’instant',

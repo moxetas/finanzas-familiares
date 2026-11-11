@@ -56,7 +56,8 @@ const CSP = [
   "style-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app",
+  // Las dos bases de datos de la sincronización (ver src/storage/sync.ts)
+  "connect-src 'self' https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app https://moxetas-familias-default-rtdb.europe-west1.firebasedatabase.app",
   "manifest-src 'self'",
   "worker-src 'self'",
   "base-uri 'self'",

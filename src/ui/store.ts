@@ -14,6 +14,8 @@ import { t } from '../i18n';
 import { Sync } from '../storage/sync';
 import { pruneShown } from '../calc/reminders';
 import { buildReminderFile } from './reminder-file';
+import { buildCola, syncCola } from '../storage/avisos-cola';
+import { pushInfo, upgradePush } from './push';
 
 export interface State {
   data: AppData;
@@ -95,6 +97,12 @@ export class Store {
     else store.saveReminders();
     store.askPersistence();
     store.sync.start();
+    // Móviles con los avisos de antes: se pasan solos al servicio de avisos nuevo.
+    void upgradePush(store.sync.code).catch(() => undefined);
+    // Cada vez que la sincronización queda al día, se repasa la cola de avisos.
+    store.sync.subscribe(() => {
+      if (store.sync.status === 'online') void store.scheduleCola();
+    });
     return store;
   }
 
@@ -163,7 +171,33 @@ export class Store {
 
   /** Deja preparados los avisos para que el service worker avise con la app cerrada. */
   private saveReminders(): void {
-    void this.local.saveReminders(buildReminderFile(this.state.data)).catch(() => undefined);
+    const file = buildReminderFile(this.state.data);
+    void this.local.saveReminders(file).catch(() => undefined);
+    this.scheduleCola();
+  }
+
+  private colaTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Pone al día la cola del servicio de avisos (avisos con la app cerrada en todos los
+   * móviles de la familia). Espera un poco para juntar varios cambios seguidos.
+   * Con `force`, aunque aún no hubiera ningún aviso (al activar los avisos aquí).
+   */
+  scheduleCola(force = false, delay = 3000): Promise<void> {
+    if (this.colaTimer) clearTimeout(this.colaTimer);
+    return new Promise((resolve) => {
+      this.colaTimer = setTimeout(() => {
+        this.colaTimer = null;
+        const code = this.sync.code;
+        // Solo con la sincronización al día: un móvil con datos atrasados quitaría de la cola los avisos de los demás.
+        // Cuando llegan los datos de la nube, se guardan y esto vuelve a pasar.
+        if (!code || this.cloudOnly || this.sync.status !== 'online') return resolve();
+        // Si este móvil tiene los avisos activados, siempre (aunque la cola esté vacía).
+        void syncCola(code, buildCola(buildReminderFile(this.state.data)), force || pushInfo()?.v === 2)
+          .catch(() => undefined)
+          .then(() => resolve());
+      }, delay);
+    });
   }
 
   private persist(): Promise<void> {

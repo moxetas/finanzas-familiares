@@ -319,7 +319,7 @@ export const pl: Messages = {
   'push.needSync': 'Przypomnienia przy zamkniętej aplikacji biorą się z synchronizowanych kont: najpierw włącz synchronizację z kodem rodziny.',
   'push.goSync': 'Przejdź do synchronizacji',
   'push.server.checking': 'Sprawdzanie usługi przypomnień…',
-  'push.server.never': 'Usługa przypomnień jeszcze nie działała. Jeśli za godzinę nadal tak będzie, trzeba dodać kod rodziny w GitHubie (sekret FAMILIA_CODIGO).',
+  'push.server.never': 'Usługa przypomnień jeszcze nie działała. Powinna działać co godzinę: jeśli za godzinę nadal tak będzie, coś jest nie tak.',
   'push.server.last': 'Usługa przypomnień ostatnio działała {ago}.',
   'push.server.late': 'Powinna działać co godzinę: coś jest nie tak.',
   'push.ago.now': 'przed chwilą',

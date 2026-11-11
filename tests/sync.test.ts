@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeYear } from '../src/calc/engine';
 import type { AppData } from '../src/calc/types';
 import { parseBackup, serializeBackup } from '../src/storage/backup';
-import { diffFlat, flatten, fromRemote, mergeFlat, readCode, toRemote, unflatten } from '../src/storage/sync';
+import { dbFor, diffFlat, FIREBASE_DB_FAMILIA, FIREBASE_DB_PUBLICA, flatten, fromRemote, mergeFlat, newCode, readCode, toRemote, unflatten } from '../src/storage/sync';
 
 function data(): AppData {
   return {
@@ -92,5 +92,14 @@ describe('sincronización', () => {
     expect(readCode('abcd-efgh-jkmn-pqrs-tuvw')).toBe('abcd-efgh-jkmn-pqrs-tuvw');
     expect(readCode('Pega este código: ABCDEFGHJKMNPQRSTUVW')).toBe('abcd-efgh-jkmn-pqrs-tuvw');
     expect(readCode('corto')).toBeNull();
+  });
+  it('los códigos nuevos empiezan por 1 y van a la base de datos pública', () => {
+    const code = newCode();
+    expect(code).toMatch(/^1[a-z0-9]{3}(-[a-z0-9]{4}){4}$/);
+    expect(readCode(code)).toBe(code);
+    expect(dbFor(code)).toBe(FIREBASE_DB_PUBLICA);
+    expect(dbFor('abcd-efgh-jkmn-pqrs-tuvw')).toBe(FIREBASE_DB_FAMILIA);
+    // Copiado a mano con «l» en vez de «1»
+    expect(readCode('labc-defg-hjkm-npqr-stuv')).toBe('1abc-defg-hjkm-npqr-stuv');
   });
 });

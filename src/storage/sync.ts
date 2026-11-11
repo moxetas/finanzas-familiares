@@ -17,7 +17,19 @@ import type { AppData, Entry } from '../calc/types';
 import { sanitizeData } from './sanitize';
 import { familyKey, sealAll, unsealAll } from './cipher';
 
-export const FIREBASE_DB = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
+/**
+ * Dos bases de datos (las mismas que Menú familiar):
+ * - la de siempre, para los códigos creados antes de publicar la app (los de la familia de Moxetas);
+ * - la pública, para los códigos nuevos, que empiezan por «1» (los de antes nunca llevan «1»).
+ * Así lo que haga la gente que descarga la app nunca llena la base de la familia.
+ */
+export const FIREBASE_DB_FAMILIA = 'https://menu-familiar-a2424-default-rtdb.europe-west1.firebasedatabase.app';
+export const FIREBASE_DB_PUBLICA = 'https://moxetas-familias-default-rtdb.europe-west1.firebasedatabase.app';
+
+/** Base de datos de un código de familia. */
+export function dbFor(code: string): string {
+  return code.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith('1') ? FIREBASE_DB_PUBLICA : FIREBASE_DB_FAMILIA;
+}
 const LS_KEY = 'finanzas-familiares:sync';
 
 /** Datos «aplanados»: una ruta (`cfg`, `ov/<clave>`, `rl/<clave>`, `en/<id>`) → valor. */
@@ -106,18 +118,21 @@ export function mergeFlat(base: Flat, remote: Flat, cur: Flat): Flat {
 
 // ── Código de familia ────────────────────────────────────────────────────────
 
+/** Código nuevo: «1» (base de datos pública) y 19 letras o cifras al azar. */
 export function newCode(): string {
   const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const r = new Uint32Array(20);
+  const r = new Uint32Array(19);
   crypto.getRandomValues(r);
-  return Array.from(r, (n) => abc[n % abc.length]!).join('').match(/.{4}/g)!.join('-');
+  return ('1' + Array.from(r, (n) => abc[n % abc.length]!).join('')).match(/.{4}/g)!.join('-');
 }
 
 /** Acepta el código con o sin guiones, o dentro de un mensaje. Devuelve `null` si no es válido. */
 export function readCode(text: string): string | null {
   const lower = String(text).toLowerCase();
   const m = lower.match(/[a-z0-9]{4}(?:-[a-z0-9]{4}){4}/) ?? lower.match(/(?<![a-z0-9])[a-z0-9]{20}(?![a-z0-9])/);
-  const s = (m ? m[0] : lower).replace(/[^a-z0-9]/g, '');
+  let s = (m ? m[0] : lower).replace(/[^a-z0-9]/g, '');
+  // Los códigos nunca llevan «l» ni «i»: al principio, quien lo copia a mano ha querido poner «1».
+  if (/^[li]/.test(s)) s = '1' + s.slice(1);
   return s.length === 20 ? s.match(/.{4}/g)!.join('-') : null;
 }
 
@@ -223,7 +238,7 @@ export class Sync {
   }
 
   private url(path = PATH, code = this.info!.code): string {
-    return `${FIREBASE_DB}/familias/${code}/${path}.json`;
+    return `${dbFor(code)}/familias/${code}/${path}.json`;
   }
 
   /** Lee y descifra lo que hay en la nube (`{}` si no hay nada). */
@@ -257,7 +272,7 @@ export class Sync {
       const merged = Object.keys(old).length ? mergeFlat(info.base, old, cur) : cur;
       const res = await fetch(this.url(PATH, info.code), { method: 'PUT', body: JSON.stringify(toRemote(await this.sealed(info.code, merged) as Flat)) });
       if (!res.ok) throw new Error(String(res.status));
-      await fetch(`${FIREBASE_DB}/familias/${info.code}/finanzas-migrado.json`, { method: 'PUT', body: JSON.stringify(Date.now()) }).catch(() => null);
+      await fetch(this.url('finanzas-migrado', info.code), { method: 'PUT', body: JSON.stringify(Date.now()) }).catch(() => null);
       if (Object.keys(diffFlat(cur, merged)).length > 0) this.host.replaceData(unflatten(merged, this.host.fallbackYear(), this.host.accountName()));
       info.base = merged;
     }
@@ -272,7 +287,7 @@ export class Sync {
     if (this.cleaned) return;
     this.cleaned = true;
     try {
-      const res = await fetch(`${FIREBASE_DB}/familias/${code}/finanzas-migrado.json`, { cache: 'no-store' });
+      const res = await fetch(this.url('finanzas-migrado', code), { cache: 'no-store' });
       const when = (await res.json()) as unknown;
       if (typeof when === 'number' && Date.now() - when > OLD_GRACE) {
         await fetch(this.url(OLD_PATH, code), { method: 'DELETE' });

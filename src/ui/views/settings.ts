@@ -6,7 +6,6 @@ import { accountOrder, inOrder } from '../../calc/order';
 import type { Item } from '../../calc/types';
 import { currentLocale, fmtDate, fmtDateTime, isLang, LANGS, langName, monthName, setLocale, t, type Lang } from '../../i18n';
 import { saveLang } from '../lang';
-import { setPushLang } from '../push';
 import { exampleData } from '../../storage/example';
 import { Sync } from '../../storage/sync';
 import { exportBackup, importBackup } from '../backup-actions';
@@ -225,9 +224,8 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
     // Si aún se ve el ejemplo (y no se comparte), se vuelve a crear en el idioma nuevo.
     // Los datos de cada uno no se tocan: los nombres que escribe no se traducen.
     if (ctx.data.config.example && !Sync.savedCode()) ctx.store.setData(exampleData(ctx.data.config.year, todayISO()));
-    // Los avisos con la app cerrada (si están activados en este móvil) también cambian de idioma.
-    const pushLang = Promise.race([setPushLang(Sync.savedCode(), code).catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
-    if (saveLang(code)) void Promise.all([ctx.store.saved(), pushLang]).then(() => location.reload());
+    // Al volver a abrirse, la app prepara otra vez los avisos con la app cerrada en el idioma nuevo.
+    if (saveLang(code)) void ctx.store.saved().then(() => location.reload());
     else ctx.store.setMeta({});
   });
   const languageCard = card({ title: t('settings.language'), id: 'idioma' }, lang.el);

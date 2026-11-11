@@ -169,22 +169,61 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag === PERIODIC_TAG) event.waitUntil(notifyDuePayments().catch(() => undefined));
 });
 
-// Avisos que envía el proceso de GitHub (.github/scripts/avisos.mjs) con la app cerrada.
+// Avisos que manda el servicio de avisos (repositorio moxetas/avisos-familia) con la app
+// cerrada. Llegan cifrados ({ v: 1, p }): se abren con la clave de los avisos que la app
+// guardó en IndexedDB (src/storage/avisos-cola.ts). El servidor nunca ve el texto.
+
+function fromB64url(s) {
+  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4));
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+async function openSealed(key, sealed) {
+  const bytes = fromB64url(sealed.slice(3));
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12));
+  let value = JSON.parse(new TextDecoder().decode(plain));
+  if (typeof value === 'string') value = JSON.parse(value);
+  return value;
+}
+
+async function showPush(data) {
+  const db = await openDB();
+  const key = await idbGet(db, 'avisos-key');
+  if (!key || typeof data.p !== 'string') throw new Error('sin clave');
+  const r = await openSealed(key, data.p);
+  const today = localToday();
+  const n = daysBetween(today, r.date);
+  const L = r.l || {};
+  const when = n <= 0 ? L.today : n === 1 ? L.tomorrow : String(L.inDays || '').replace('{n}', String(n));
+  await self.registration.showNotification((when ? when + ': ' : '') + r.c, {
+    body: r.a + ' · ' + r.d + (r.e && L.estimated ? ' (' + L.estimated + ')' : ''),
+    tag: r.k,
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    data: { url: './#/avisos' },
+  });
+  // Así el aviso diario de este mismo móvil (periodic sync) no lo repite.
+  await idbAddShown(db, [r.k], today);
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: 'Finanzas familiares', body: event.data ? event.data.text() : '' };
+    data = {};
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Finanzas familiares', {
-      body: data.body || '',
-      icon: 'icons/icon-192.png',
-      badge: 'icons/icon-192.png',
-      tag: data.tag || undefined,
-      data: { url: data.url || './#/avisos' },
-    }),
+    showPush(data).catch(() =>
+      // Sin la clave (por ejemplo, tras borrar los datos del navegador): un aviso sin detalles.
+      self.registration.showNotification(data.title || '💶 Finanzas familiares', {
+        body: data.body || '',
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png',
+        tag: data.tag || undefined,
+        data: { url: data.url || './#/avisos' },
+      }),
+    ),
   );
 });
 

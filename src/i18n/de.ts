@@ -319,7 +319,7 @@ export const de: Messages = {
   'push.needSync': 'Erinnerungen bei geschlossener App kommen von den synchronisierten Konten: Schalte zuerst die Synchronisierung mit deinem Familiencode ein.',
   'push.goSync': 'Zur Synchronisierung',
   'push.server.checking': 'Erinnerungsdienst wird geprüft…',
-  'push.server.never': 'Der Erinnerungsdienst ist noch nicht gelaufen. Wenn es in einer Stunde noch so ist, muss der Familiencode in GitHub eingetragen werden (Secret FAMILIA_CODIGO).',
+  'push.server.never': 'Der Erinnerungsdienst ist noch nicht gelaufen. Er sollte jede Stunde laufen: Wenn es in einer Stunde noch so ist, stimmt etwas nicht.',
   'push.server.last': 'Der Erinnerungsdienst lief zuletzt {ago}.',
   'push.server.late': 'Er sollte jede Stunde laufen: Etwas stimmt nicht.',
   'push.ago.now': 'gerade eben',

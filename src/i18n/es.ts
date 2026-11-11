@@ -321,7 +321,7 @@ export const es = {
   'push.needSync': 'Los avisos con la app cerrada salen de las cuentas sincronizadas: primero activa la sincronización con tu código de familia.',
   'push.goSync': 'Ir a sincronizar',
   'push.server.checking': 'Comprobando el servicio de avisos…',
-  'push.server.never': 'El servicio de avisos todavía no ha pasado. Si dentro de una hora sigue así, falta poner el código de familia en GitHub (secreto FAMILIA_CODIGO).',
+  'push.server.never': 'El servicio de avisos todavía no ha pasado. Debería pasar cada hora: si dentro de una hora sigue así, algo no va bien.',
   'push.server.last': 'El servicio de avisos pasó por última vez {ago}.',
   'push.server.late': 'Debería pasar cada hora: algo no va bien.',
   'push.ago.now': 'hace un momento',

@@ -319,7 +319,7 @@ export const en: Messages = {
   'push.needSync': 'Reminders with the app closed come from the synced accounts: first turn on sync with your family code.',
   'push.goSync': 'Go to sync',
   'push.server.checking': 'Checking the reminder service…',
-  'push.server.never': 'The reminder service has not run yet. If it is still like this in an hour, the family code needs to be added on GitHub (secret FAMILIA_CODIGO).',
+  'push.server.never': 'The reminder service has not run yet. It should run every hour: if it is still like this in an hour, something is wrong.',
   'push.server.last': 'The reminder service last ran {ago}.',
   'push.server.late': 'It should run every hour: something is wrong.',
   'push.ago.now': 'a moment ago',

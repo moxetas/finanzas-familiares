@@ -1,15 +1,14 @@
 /**
- * Avisos con la app cerrada (Web Push), como en Menú familiar: cada móvil se
- * apunta en Firebase (/familias/<código>/finanzas-push/<móvil>) y un proceso de
- * GitHub que se ejecuta cada hora (.github/workflows/avisos.yml) envía los
- * avisos de los pagos. Funciona en iPhone (iOS 16.4 o posterior, abriendo la
- * app desde la pantalla de inicio) y en Android.
+ * Avisos con la app cerrada (Web Push) para cualquier familia, como en Menú familiar.
+ * Cada móvil se apunta en `/subs/<huella de la familia>/f_<móvil>` y el servicio de
+ * avisos (repositorio moxetas/avisos-familia, cada hora) le manda los avisos que la app
+ * dejó cifrados en la cola (ver src/storage/avisos-cola.ts). Funciona en iPhone
+ * (iOS 16.4 o posterior, abriendo la app desde la pantalla de inicio) y en Android.
  * Hace falta tener activada la sincronización (el código de familia).
- * Cada móvil guarda también su idioma (`lang`), para recibir los avisos en él.
  */
 
-import { currentLocale } from '../i18n';
-import { FIREBASE_DB } from '../storage/sync';
+import { APP, VAPID_PUBLIC, famId, saveKeyForWorker } from '../storage/avisos-cola';
+import { dbFor } from '../storage/sync';
 
 const INFO_LS = 'finanzas-familiares:push';
 const DEVICE_LS = 'finanzas-familiares:dispositivo';
@@ -17,13 +16,17 @@ const DEVICE_LS = 'finanzas-familiares:dispositivo';
 export interface PushInfo {
   id: string;
   dispositivo: string;
+  /** 2 = apuntado en el servicio de avisos para todas las familias. */
+  v?: number;
 }
 
-async function raw(code: string, path: string, method = 'GET', body?: unknown): Promise<unknown> {
-  const res = await fetch(`${FIREBASE_DB}/familias/${code}/${path}.json`, method === 'GET' ? { cache: 'no-store' } : { method, body: JSON.stringify(body) });
+async function req(url: string, method = 'GET', body?: unknown): Promise<unknown> {
+  const res = await fetch(url, method === 'GET' ? { cache: 'no-store' } : { method, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`Firebase ${res.status}`);
   return res.json();
 }
+
+const subUrl = async (code: string, id: string): Promise<string> => `${dbFor(code)}/subs/${await famId(code)}/${APP}_${id}.json`;
 
 export function pushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -66,37 +69,43 @@ function deviceName(): string {
 const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (ch) => ch.charCodeAt(0));
 
-/** Claves para firmar los avisos (VAPID): las de la familia, compartidas con Menú familiar; si no hay, se crean. */
-async function vapidKey(code: string): Promise<string> {
-  let pub = (await raw(code, 'vapid/publicKey')) as string | null;
-  if (pub) return pub;
-  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
-  const mine = b64url(await crypto.subtle.exportKey('raw', kp.publicKey));
-  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
-  await raw(code, 'vapid', 'PUT', { publicKey: mine, privateKey: jwk.d, creada: Date.now() });
-  // Por si otro móvil las ha creado a la vez: se usa la que quede guardada.
-  await new Promise((r) => setTimeout(r, 1200));
-  pub = (await raw(code, 'vapid/publicKey')) as string | null;
-  return pub ?? mine;
+/** Apunta este móvil (sin pedir permiso: eso lo hace `enablePush`). */
+async function register(code: string): Promise<void> {
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  const current = sub?.options?.applicationServerKey;
+  // Los móviles apuntados antes usaban las claves de cada familia: se cambian por las del servicio.
+  if (sub && (!current || b64url(current) !== VAPID_PUBLIC)) {
+    await sub.unsubscribe();
+    sub = null;
+  }
+  sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(VAPID_PUBLIC) });
+  const json = sub.toJSON();
+  const info: PushInfo = { id: deviceId(), dispositivo: deviceName(), v: 2 };
+  await saveKeyForWorker(code);
+  await req(await subUrl(code, info.id), 'PUT', { e: json.endpoint, k: json.keys, a: APP, d: info.dispositivo, t: Date.now() });
+  localStorage.setItem(INFO_LS, JSON.stringify(info));
 }
 
 export async function enablePush(code: string): Promise<'ok' | 'denied'> {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') return 'denied';
-  const reg = await navigator.serviceWorker.ready;
-  const pub = await vapidKey(code);
-  let sub = await reg.pushManager.getSubscription();
-  const current = sub?.options?.applicationServerKey;
-  if (sub && (!current || b64url(current) !== pub)) {
-    await sub.unsubscribe();
-    sub = null;
-  }
-  sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64url(pub) });
-  const json = sub.toJSON();
-  const info: PushInfo = { id: deviceId(), dispositivo: deviceName() };
-  await raw(code, `finanzas-push/${info.id}`, 'PUT', { endpoint: json.endpoint, keys: json.keys, dispositivo: info.dispositivo, lang: currentLocale(), desde: Date.now() });
-  localStorage.setItem(INFO_LS, JSON.stringify(info));
+  await register(code);
   return 'ok';
+}
+
+/**
+ * Al abrir la app: los móviles que tenían los avisos del sistema de antes (solo para la
+ * familia de Moxetas) se pasan solos al servicio nuevo, y se borra lo de antes.
+ */
+export async function upgradePush(code: string | null): Promise<void> {
+  const info = pushInfo();
+  if (!code || !info || info.v === 2 || !pushSupported() || Notification.permission !== 'granted') return;
+  await register(code);
+  const base = `${dbFor(code)}/familias/${code}`;
+  await req(`${base}/finanzas-push/${info.id}.json`, 'DELETE').catch(() => undefined);
+  // Las claves de antes estaban guardadas con la familia: ya no hacen falta.
+  await req(`${base}/vapid.json`, 'DELETE').catch(() => undefined);
 }
 
 export async function disablePush(code: string | null): Promise<void> {
@@ -105,7 +114,7 @@ export async function disablePush(code: string | null): Promise<void> {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) await sub.unsubscribe();
-    if (info && code) await raw(code, `finanzas-push/${info.id}`, 'DELETE');
+    if (info && code) await req(await subUrl(code, info.id), 'DELETE');
   } catch {
     /* aunque falle, se olvida en este móvil */
   }
@@ -116,13 +125,6 @@ export async function disablePush(code: string | null): Promise<void> {
   }
 }
 
-/** Al cambiar de idioma: los avisos de este móvil llegarán en el idioma nuevo. */
-export async function setPushLang(code: string | null, lang: string): Promise<void> {
-  const info = pushInfo();
-  if (!info || !code) return;
-  await raw(code, `finanzas-push/${info.id}/lang`, 'PUT', lang);
-}
-
 export async function testPush(title: string, body: string): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   await reg.showNotification(title, { body, icon: 'icons/icon-192.png', tag: 'prueba' });
@@ -130,6 +132,6 @@ export async function testPush(title: string, body: string): Promise<void> {
 
 /** Cuándo pasó por última vez el servicio de avisos (milisegundos), o `null`. */
 export async function lastServerRun(code: string): Promise<number | null> {
-  const s = (await raw(code, 'finanzas-servidor')) as { ultimaVez?: number } | null;
+  const s = (await req(`${dbFor(code)}/estado-avisos.json`)) as { ultimaVez?: number } | null;
   return typeof s?.ultimaVez === 'number' ? s.ultimaVez : null;
 }
