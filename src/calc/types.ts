@@ -36,6 +36,8 @@ export interface Item {
   estimated?: boolean;
   /** Bloque donde se muestra (ver `Config.sections`). */
   group?: string;
+  /** Domiciliación que lo creó (`DomRow.link`). */
+  dom?: string;
 }
 
 export interface Payment {
@@ -47,6 +49,8 @@ export interface Payment {
   estimated: boolean;
   note?: string;
   group?: string;
+  /** Domiciliación que lo creó (`DomRow.link`). */
+  dom?: string;
 }
 
 /** Deuda que baja con pagos cuyo concepto empieza por `match`. */
@@ -123,6 +127,20 @@ export interface DomRow {
   cost: number | null;
   from: string;
   to: string;
+  /**
+   * Si la domiciliación pone sus cargos en la tabla del mes: cada cuántos meses
+   * (1, 2, 3, 6 o 12), el primer cargo, la cuenta de la app y el enlace con los
+   * pagos o el concepto mensual que creó (`Payment.dom`, `Item.dom`).
+   */
+  plan?: DomPlan;
+}
+
+export interface DomPlan {
+  link: string;
+  every: number;
+  /** Primer cargo, AAAA-MM-DD. */
+  first: string;
+  account: number;
 }
 
 export interface Domiciliaciones {

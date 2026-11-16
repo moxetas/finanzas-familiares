@@ -8,7 +8,7 @@
 import { parseDate } from '../calc/keys';
 import { round2 } from '../calc/money';
 import { MAX_ROW_ORDER } from '../calc/order';
-import type { BtcTrade, SalaryPerson, Account, AppData, Debt, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
+import type { BtcTrade, SalaryPerson, Account, AppData, Debt, DomPlan, DomRow, Domiciliaciones, Entry, EntryType, HistoryMonth, Item, ItemType, Payment } from '../calc/types';
 
 const ITEM_TYPES: readonly ItemType[] = ['Ingreso', 'Gasto', 'Ahorro'];
 const ENTRY_TYPES: readonly EntryType[] = ['Ingreso', 'Gasto'];
@@ -92,6 +92,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       const group = cleanText(it['group'], 120);
       if (note) item.note = note;
       if (group) item.group = group;
+      const link = cleanText(it['dom'], 64);
+      if (link) item.dom = link;
       if (it['estimated'] === true) item.estimated = true;
       return item;
     });
@@ -111,6 +113,8 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     const group = cleanText(p['group'], 120);
     if (note) pay.note = note;
     if (group) pay.group = group;
+    const link = cleanText(p['dom'], 64);
+    if (link) pay.dom = link;
     payments.push(pay);
   }
 
@@ -226,6 +230,18 @@ function sanitizeHistory(raw: unknown): Record<string, HistoryMonth> | undefined
   return Object.keys(out).length ? out : undefined;
 }
 
+const EVERY = [1, 2, 3, 6, 12];
+
+function sanitizePlan(raw: unknown): DomPlan | undefined {
+  if (!isObj(raw)) return undefined;
+  const link = cleanText(raw['link'], 64);
+  const first = typeof raw['first'] === 'string' ? raw['first'].slice(0, 10) : '';
+  const every = Number(raw['every']);
+  const account = Number(raw['account']);
+  if (!link || !parseDate(first) || !EVERY.includes(every) || !Number.isInteger(account) || account < 0) return undefined;
+  return { link, every, first, account };
+}
+
 function sanitizeDom(raw: unknown): Domiciliaciones | undefined {
   if (!isObj(raw)) return undefined;
   const accounts = arr(raw['accounts'])
@@ -240,14 +256,19 @@ function sanitizeDom(raw: unknown): Domiciliaciones | undefined {
       rows: arr(g['rows'])
         .filter(isObj)
         .slice(0, 100)
-        .map((r) => ({
-          n: nullableNum(r['n']),
-          c: cleanText(r['c'], 300),
-          t: cleanText(r['t'], 60),
-          cost: nullableNum(r['cost']),
-          from: cleanText(r['from'], 60),
-          to: cleanText(r['to'], 60),
-        })),
+        .map((r) => {
+          const row: DomRow = {
+            n: nullableNum(r['n']),
+            c: cleanText(r['c'], 300),
+            t: cleanText(r['t'], 60),
+            cost: nullableNum(r['cost']),
+            from: cleanText(r['from'], 60),
+            to: cleanText(r['to'], 60),
+          };
+          const plan = sanitizePlan(r['plan']);
+          if (plan) row.plan = plan;
+          return row;
+        }),
     }));
   return groups.length ? { accounts, groups } : undefined;
 }

@@ -6,7 +6,7 @@
 import { historyCellKey, itemOverrideKey, parseIndexedKey, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2 } from './money';
 import { accountOrder } from './order';
-import type { Account, AppData, Config, DomRow, Domiciliaciones, Entry, Item, Payment } from './types';
+import type { Account, AppData, Config, DomPlan, DomRow, Domiciliaciones, Entry, Item, Payment } from './types';
 
 /** Copia superficial con arrays y objetos de primer nivel nuevos. */
 function cloneData(data: AppData): AppData {
@@ -94,6 +94,15 @@ export function removeAccount(data: AppData, index: number, reassignTo: number):
   next.config.payments = next.config.payments.map((p) => ({ ...p, account: remap(p.account) }));
   next.entries = next.entries.map((e) => ({ ...e, account: remap(e.account) }));
   if (next.config.debts) next.config.debts = next.config.debts.map((d) => ({ ...d, account: remap(d.account) }));
+  if (next.domiciliaciones) {
+    next.domiciliaciones = {
+      ...next.domiciliaciones,
+      groups: next.domiciliaciones.groups.map((g) => ({
+        ...g,
+        rows: g.rows.map((r) => (r.plan ? { ...r, plan: { ...r.plan, account: remap(r.plan.account) } } : r)),
+      })),
+    };
+  }
   next.real_balances = shiftKeys(next.real_balances, 'c', index);
   next.overrides = shiftColumnKeys(next.overrides, index);
   if (data.config.accountOrder) {
@@ -330,13 +339,15 @@ export interface DomRowInput {
   cost: number | null;
   from: string;
   to: string;
+  /** Si pone sus cargos en la tabla del mes (ver `dom-plan.ts`). */
+  plan?: DomPlan;
 }
 
 function cloneDom(data: AppData): Domiciliaciones {
   const dom = data.domiciliaciones;
   return {
     accounts: (dom?.accounts ?? []).map((a) => ({ ...a })),
-    groups: (dom?.groups ?? []).map((g) => ({ title: g.title, rows: g.rows.map((r) => ({ ...r })) })),
+    groups: (dom?.groups ?? []).map((g) => ({ title: g.title, rows: g.rows.map((r) => ({ ...r, ...(r.plan ? { plan: { ...r.plan } } : {}) })) })),
   };
 }
 
@@ -356,6 +367,7 @@ export function saveDomRow(data: AppData, at: { g: number; r: number } | null, i
     cost: input.cost === null ? null : round2(input.cost),
     from: input.from,
     to: input.to,
+    ...(input.plan ? { plan: { ...input.plan } } : {}),
   };
   if (at) {
     const prev = dom.groups[at.g]?.rows[at.r];

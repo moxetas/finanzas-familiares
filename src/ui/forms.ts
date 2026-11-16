@@ -15,6 +15,12 @@ import {
   addPayment,
   defaultPaymentGroup,
   findSamePayment,
+  addPlanCharges,
+  EVERY_OPTIONS,
+  planCharges,
+  planGroup,
+  removeCharges,
+  removePlanCharges,
   removeAccount,
   removeEntry,
   removeItem,
@@ -27,9 +33,9 @@ import {
   updateEntry,
   updateItem,
   updatePayment,
-} from '../calc/mutations';
-import type { EntryType, ItemType } from '../calc/types';
-import { fmtMoney, fmtYearMonth, t } from '../i18n';
+} from '../calc';
+import type { DomPlan, EntryType, ItemType } from '../calc/types';
+import { fmtDate, fmtMoney, fmtYearMonth, t } from '../i18n';
 import { LIMITS, newId } from '../storage/sanitize';
 import type { Ctx } from './context';
 import { confirmDialog, openDialog, type DialogAction } from './dialog';
@@ -418,23 +424,68 @@ function domAccountNames(ctx: Ctx): string[] {
 /** Añade (`at` = null) o cambia una domiciliación. `group` propone el bloque al añadir. */
 export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?: string): void {
   const dom = ctx.data.domiciliaciones;
+  const config = ctx.data.config;
   const current = at ? dom?.groups[at.g]?.rows[at.r] : undefined;
   const groupTitle = at ? (dom?.groups[at.g]?.title ?? '') : (group ?? dom?.groups[0]?.title ?? t('dom.defaultGroup'));
   const accounts = domAccountNames(ctx);
+  const today = todayISO();
+  const plan = current?.plan;
 
   const concept = textField({ label: t('dom.field.concept'), value: current?.c ?? '', maxlength: 300 });
-  const cost = amountField({ label: t('dom.field.cost'), value: current?.cost ?? null, optional: true });
+  // Cada cuánto se cobra: si no es «solo en la lista», sus cargos van solos a la tabla del mes.
+  const every = selectField<number>({
+    label: t('dom.field.every'),
+    value: plan?.every ?? (current ? 0 : 1),
+    options: [...EVERY_OPTIONS.map((n) => ({ value: n, label: t(`dom.every.${n}`) })), { value: 0, label: t('dom.every.0') }],
+  });
+  const cost = amountField({ label: t('dom.field.costEach'), value: current?.cost ?? null, optional: true });
+  const first = dateField({ label: t('dom.field.first'), value: plan?.first ?? (today.startsWith(String(config.year)) ? today : `${config.year}-01-01`) });
+  const usual = (() => {
+    const g = defaultPaymentGroup(config);
+    const count = new Map<number, number>();
+    for (const p of config.payments) if ((p.group ?? '') === g) count.set(p.account, (count.get(p.account) ?? 0) + 1);
+    return [...count].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  })();
+  const account = selectField({ label: t('dom.field.account'), options: accountOptions(ctx), value: plan && plan.account < config.accounts.length ? plan.account : usual });
+  const summary = h('p', { class: 'field-hint dom-plan-hint', role: 'status' });
+  // Domiciliación antigua (sin enlace) que pasa a tener cargos: se ofrece quitar lo que ya había apuntado a mano.
+  const old = current && !plan ? planCharges(ctx.data, current, '') : { payments: [], items: [] };
+  const oldNames = [...old.payments.map((i) => config.payments[i]!.concept), ...old.items.map((i) => config.items[i]!.name)];
+  const replace = checkboxField({ label: t('dom.replaceOld', { list: oldNames.slice(0, 6).join(', ') }), checked: true });
   const from = textField({ label: t('dom.field.from'), value: current?.from ?? '', optional: true, suggestions: accounts, hint: t('settings.accounts.noNumbers') });
   const to = textField({ label: t('dom.field.to'), value: current?.to ?? '', optional: true, suggestions: accounts });
   const groupField = textField({ label: t('dom.field.group'), value: groupTitle, maxlength: 120, suggestions: (dom?.groups ?? []).map((g) => g.title), hint: t('dom.field.group.hint') });
   const ticker = textField({ label: t('dom.field.ticker'), value: current?.t ?? '', optional: true });
 
+  const sync = () => {
+    const n = Number(every.select.value);
+    first.el.hidden = n === 0;
+    account.el.hidden = n === 0 || config.accounts.length < 2;
+    replace.el.hidden = n === 0 || oldNames.length === 0;
+    const g = planGroup(config, n);
+    const block = g || t(n === 1 ? 'months.group.Gasto' : 'months.group.Pago');
+    const date = first.el.querySelector('input')?.value ?? '';
+    summary.textContent =
+      n === 0 ? t('dom.plan.none') : n === 1 ? t('dom.plan.month', { block }) : t('dom.plan.pay', { n: Math.round(12 / n), block, date: date ? fmtDate(date, { year: true }) : '—' });
+  };
+  every.select.addEventListener('change', sync);
+  first.el.addEventListener('change', sync);
+  first.el.addEventListener('input', sync);
+  sync();
+
   const actions: DialogAction[] = [];
   if (at && current) {
     actions.push(
       deleteAction(async () => {
-        const yes = await confirmDialog({ text: t('dom.delete', { name: current.c }), yes: t('action.delete'), danger: true });
-        if (yes) ctx.commit(removeDomRow(ctx.data, at.g, at.r), t('dom.deleted'));
+        // Al borrarla se ofrece quitar también sus cargos de la tabla del mes, desde hoy.
+        const found = planCharges(ctx.data, current, today);
+        const names = [...found.payments.map((i) => `${config.payments[i]!.concept} (${fmtDate(config.payments[i]!.date, { year: true })})`), ...found.items.map((i) => config.items[i]!.name)];
+        const also = checkboxField({ label: t('dom.delete.charges', { list: names.slice(0, 8).join(', ') + (names.length > 8 ? '…' : '') }), checked: true });
+        const yes = await confirmDialog({ text: [h('p', null, t('dom.delete', { name: current.c })), names.length ? also.el : null], yes: t('action.delete'), danger: true });
+        if (!yes) return;
+        let data = ctx.data;
+        if (names.length && also.el.querySelector('input')?.checked) data = plan ? removePlanCharges(data, plan.link, today) : removeCharges(data, found, today);
+        ctx.commit(removeDomRow(data, at.g, at.r), t('dom.deleted'));
       }),
     );
   }
@@ -444,15 +495,31 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
       label: t('action.save'),
       submit: true,
       onClick: () => {
-        const v = readAll({ concept, cost, from, to, groupField, ticker });
+        const v = readAll({ concept, cost, from, to, groupField, ticker, first, account });
         if (!v) return false;
-        ctx.commit(saveDomRow(ctx.data, at, { group: v.groupField, c: v.concept, t: v.ticker, cost: v.cost, from: v.from, to: v.to }));
+        const n = Number(every.select.value);
+        if (n && !v.cost) {
+          toast(t('dom.needCost'));
+          cost.focus();
+          return false;
+        }
+        const nextPlan: DomPlan | undefined = n ? { link: plan?.link ?? newId(), every: n, first: v.first, account: v.account } : undefined;
+        let data = ctx.data;
+        const changed =
+          !plan || !nextPlan || plan.every !== nextPlan.every || plan.first !== nextPlan.first || plan.account !== nextPlan.account || current?.cost !== v.cost || current?.c !== v.concept;
+        if (changed) {
+          // Los cargos ya pasados se quedan; los de hoy en adelante se vuelven a crear con lo nuevo.
+          if (plan) data = removePlanCharges(data, plan.link, today);
+          else if (nextPlan && oldNames.length && (replace.el.querySelector('input')?.checked ?? false)) data = removeCharges(data, old, '');
+          if (nextPlan) data = addPlanCharges(data, nextPlan, v.concept, v.cost ?? 0, plan ? today : '');
+        }
+        ctx.commit(saveDomRow(data, at, { group: v.groupField, c: v.concept, t: v.ticker, cost: v.cost, from: v.from, to: v.to, plan: nextPlan }), nextPlan && changed ? t('dom.plan.saved') : undefined);
       },
     },
   );
   openDialog({
     title: at ? t('dom.edit') : t('dom.new'),
-    content: [concept.el, cost.el, from.el, to.el, groupField.el, ticker.el],
+    content: [concept.el, every.el, cost.el, first.el, account.el, summary, replace.el, from.el, to.el, groupField.el, ticker.el],
     actions,
   });
 }

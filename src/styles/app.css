@@ -1162,6 +1162,11 @@ textarea {
   color: var(--neg);
   font-weight: 600;
 }
+.dom-plan-hint {
+  margin: -4px 0 6px;
+  color: var(--accent, var(--muted));
+  font-weight: 600;
+}
 .card > .field-hint {
   margin-top: 10px;
 }
