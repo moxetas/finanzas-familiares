@@ -423,6 +423,8 @@ export const de: Messages = {
   'field.date': 'Datum',
   'field.concept': 'Posten',
   'field.estimated': 'Geschätzter Betrag (kann sich ändern)',
+  'field.group': 'Bereich in der Monatstabelle',
+  'payment.same': 'Achtung: „{name}“ ist an diesem Tag schon mit demselben Betrag eingetragen. Doppelt?',
   'field.note': 'Notiz',
   'field.optional': '(optional)',
   'field.required': 'Dieses Feld ist erforderlich.',

@@ -423,6 +423,8 @@ export const ar: Messages = {
   'field.date': 'التاريخ',
   'field.concept': 'البند',
   'field.estimated': 'مبلغ تقديري (قد يتغير)',
+  'field.group': 'القسم في جدول الشهر',
+  'payment.same': 'انتبه: لديك بالفعل «{name}» في ذلك اليوم بنفس المبلغ. هل هو مكرر؟',
   'field.note': 'ملاحظة',
   'field.optional': '(اختياري)',
   'field.required': 'هذا الحقل مطلوب.',

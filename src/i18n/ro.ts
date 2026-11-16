@@ -423,6 +423,8 @@ export const ro: Messages = {
   'field.date': 'Data',
   'field.concept': 'Element',
   'field.estimated': 'Sumă estimată (poate varia)',
+  'field.group': 'Secțiunea din tabelul lunii',
+  'payment.same': 'Atenție: ai deja „{name}” în ziua aceea cu aceeași sumă. Nu e dublură?',
   'field.note': 'Notă',
   'field.optional': '(opțional)',
   'field.required': 'Acest câmp este obligatoriu.',

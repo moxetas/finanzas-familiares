@@ -423,6 +423,8 @@ export const pl: Messages = {
   'field.date': 'Data',
   'field.concept': 'Pozycja',
   'field.estimated': 'Kwota szacunkowa (może się zmienić)',
+  'field.group': 'Sekcja tabeli miesiąca',
+  'payment.same': 'Uwaga: masz już „{name}” tego dnia z tą samą kwotą. Czy to nie duplikat?',
   'field.note': 'Notatka',
   'field.optional': '(opcjonalnie)',
   'field.required': 'To pole jest wymagane.',

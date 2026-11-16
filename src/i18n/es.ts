@@ -425,6 +425,8 @@ export const es = {
   'field.date': 'Fecha',
   'field.concept': 'Concepto',
   'field.estimated': 'Importe estimado (puede variar)',
+  'field.group': 'Bloque de la tabla del mes',
+  'payment.same': 'Ojo: ya tienes «{name}» ese día con el mismo importe. ¿No estará repetido?',
   'field.note': 'Nota',
   'field.optional': '(opcional)',
   'field.required': 'Este campo es obligatorio.',

@@ -4,6 +4,7 @@ import type { Line } from '../calc/engine';
 import { monthKey, daysInMonth, todayISO } from '../calc/keys';
 import { setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
 import { accountOrder, inOrder } from '../calc/order';
+import { parseAmount } from '../calc/money';
 import {
   removeDomRow,
   saveDomRow,
@@ -12,6 +13,8 @@ import {
   addEntry,
   addItem,
   addPayment,
+  defaultPaymentGroup,
+  findSamePayment,
   removeAccount,
   removeEntry,
   removeItem,
@@ -208,6 +211,31 @@ export function editPayment(ctx: Ctx, index: number | null): void {
   const account = selectField({ label: t('field.account'), options: accountOptions(ctx), value: current?.account ?? 0 });
   if (ctx.data.config.accounts.length < 2) account.el.hidden = true;
   const estimated = checkboxField({ label: t('field.estimated'), checked: current?.estimated ?? false });
+  // Bloque de la tabla del mes: solo si hay bloques propios (p. ej. «Pagos de este mes · salen del bote»).
+  // Los pagos sin bloque van a «Pagos no mensuales»; los nuevos, al bloque que más usan los demás pagos.
+  const sections = ctx.data.config.sections ?? [];
+  const groupNow = current?.group && sections.includes(current.group) ? current.group : current ? '' : defaultPaymentGroup(ctx.data.config);
+  const group = selectField<string>({
+    label: t('field.group'),
+    value: groupNow,
+    options: [...sections.map((s) => ({ value: s, label: s })), { value: '', label: t('months.group.Pago') }],
+  });
+  if (sections.length === 0) group.el.hidden = true;
+  // Aviso si ya hay un pago ese día con el mismo importe (para no apuntarlo dos veces).
+  const same = h('p', { class: 'field-hint warn-hint', role: 'status' });
+  const checkSame = () => {
+    // Se leen los cuadros tal cual, sin `read()`, para no marcar errores mientras se escribe.
+    const a = parseAmount(amount.el.querySelector('input')?.value ?? '');
+    const d = date.el.querySelector('input')?.value ?? '';
+    const twin = a && /^\d{4}-\d{2}-\d{2}$/.test(d) ? findSamePayment(ctx.data.config, d, a, index) : undefined;
+    same.textContent = twin ? t('payment.same', { name: twin.concept }) : '';
+    same.hidden = !twin;
+  };
+  for (const f of [amount.el, date.el]) {
+    f.addEventListener('input', checkSame);
+    f.addEventListener('change', checkSame);
+  }
+  checkSame();
 
   const actions: DialogAction[] = [];
   if (index !== null && current) {
@@ -224,9 +252,9 @@ export function editPayment(ctx: Ctx, index: number | null): void {
       label: t('action.save'),
       submit: true,
       onClick: () => {
-        const v = readAll({ concept, amount, date, account, estimated });
+        const v = readAll({ concept, amount, date, account, estimated, group });
         if (!v) return false;
-        const payment = { concept: v.concept, amount: v.amount ?? 0, date: v.date, account: v.account, estimated: v.estimated };
+        const payment = { concept: v.concept, amount: v.amount ?? 0, date: v.date, account: v.account, estimated: v.estimated, group: v.group };
         ctx.commit(index === null ? addPayment(ctx.data, payment) : updatePayment(ctx.data, index, payment));
       },
     },
@@ -234,7 +262,7 @@ export function editPayment(ctx: Ctx, index: number | null): void {
 
   openDialog({
     title: index === null ? t('payment.new') : t('payment.edit'),
-    content: [concept.el, amount.el, date.el, account.el, estimated.el],
+    content: [concept.el, amount.el, date.el, same, account.el, group.el, estimated.el],
     actions,
   });
 }

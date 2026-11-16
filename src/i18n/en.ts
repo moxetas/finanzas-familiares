@@ -423,6 +423,8 @@ export const en: Messages = {
   'field.date': 'Date',
   'field.concept': 'Item',
   'field.estimated': 'Estimated amount (may vary)',
+  'field.group': 'Section of the month table',
+  'payment.same': 'Heads up: you already have “{name}” on that day with the same amount. Is it a duplicate?',
   'field.note': 'Note',
   'field.optional': '(optional)',
   'field.required': 'This field is required.',

@@ -1,6 +1,6 @@
 /** «Añadir desde foto, captura o PDF»: con la IA de cada uno o pegando el texto. */
 
-import { addEntry, addItem, addPayment } from '../calc/mutations';
+import { addEntry, addItem, addPayment, defaultPaymentGroup, findSamePayment } from '../calc/mutations';
 import { accountOrder, inOrder } from '../calc/order';
 import type { AppData } from '../calc/types';
 import { todayISO } from '../calc/keys';
@@ -91,12 +91,14 @@ function review(ctx: Ctx, rows: ImportRow[]): void {
   const accId = uid('acc');
   const account = h('select', { id: accId }, inOrder(accounts, accountOrder(ctx.data.config)).map(({ item: a, index: i }) => h('option', { value: i }, a.name)));
   const editors = rows.map((r) => {
-    const on = h('input', { type: 'checkbox', checked: true, 'aria-label': t('import.include') });
+    // Si ya hay un pago ese día con el mismo importe, sale sin marcar: casi seguro que ya está apuntado.
+    const twin = r.kind === 'pago' ? findSamePayment(ctx.data.config, r.date, r.amount) : undefined;
+    const on = h('input', { type: 'checkbox', checked: !twin, 'aria-label': t('import.include') });
     const kind = h('select', { 'aria-label': t('field.type') }, (Object.keys(KIND_LABEL) as ImportKind[]).map((k) => h('option', { value: k, selected: k === r.kind }, t(KIND_LABEL[k]))));
     const concept = h('input', { type: 'text', value: r.concept, maxlength: 60, 'aria-label': t('field.concept') });
     const amount = h('input', { type: 'text', inputmode: 'decimal', value: fmtInput(r.amount), class: 'num-input', 'aria-label': t('field.amount') });
     const date = h('input', { type: 'date', value: r.date, 'aria-label': t('field.date') });
-    const el = h('li', { class: 'import-row' }, h('div', { class: 'import-row-head' }, on, kind), concept, h('div', { class: 'field-row' }, amount, date), r.estimated ? h('p', { class: 'field-hint' }, t('chip.estimated')) : null);
+    const el = h('li', { class: 'import-row' }, h('div', { class: 'import-row-head' }, on, kind), concept, h('div', { class: 'field-row' }, amount, date), r.estimated ? h('p', { class: 'field-hint' }, t('chip.estimated')) : null, twin ? h('p', { class: 'field-hint warn-hint' }, t('payment.same', { name: twin.concept })) : null);
     return { el, on, kind, concept, amount, date, row: r };
   });
   openDialog({
@@ -115,6 +117,7 @@ function review(ctx: Ctx, rows: ImportRow[]): void {
           const acc = Number(account.value) || 0;
           let data: AppData = ctx.data;
           let added = 0;
+          const group = defaultPaymentGroup(data.config);
           for (const e of editors) {
             if (!e.on.checked) continue;
             const amount = parseAmount(e.amount.value);
@@ -123,7 +126,7 @@ function review(ctx: Ctx, rows: ImportRow[]): void {
             const concept = e.concept.value.trim() || '—';
             const k = e.kind.value as ImportKind;
             const value = Math.abs(amount);
-            if (k === 'pago') data = addPayment(data, { date, concept, amount: value, account: acc, estimated: e.row.estimated });
+            if (k === 'pago') data = addPayment(data, { date, concept, amount: value, account: acc, estimated: e.row.estimated, group });
             else if (k === 'mensual') {
               const from = date.startsWith(`${data.config.year}-`) ? Number(date.slice(5, 7)) : 1;
               data = addItem(data, { name: concept, type: 'Gasto', amount: value, account: acc, to: -1, from_month: from, to_month: 12 });

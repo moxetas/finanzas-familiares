@@ -186,14 +186,39 @@ export function removeItem(data: AppData, index: number): AppData {
 // ── Pagos que no son mensuales ───────────────────────────────────────────────
 
 export function normalizePayment(p: Payment): Payment {
+  const { group, ...rest } = p;
   return {
-    ...p,
+    ...rest,
+    ...(group ? { group } : {}),
     date: p.date,
     concept: p.concept,
     amount: round2(Math.abs(p.amount)),
     account: p.account,
     estimated: Boolean(p.estimated),
   };
+}
+
+/**
+ * Bloque de la tabla del mes donde van los pagos nuevos: el bloque propio
+ * (`config.sections`) que más usan los pagos que ya hay, o '' («Pagos no mensuales»).
+ */
+export function defaultPaymentGroup(config: Config): string {
+  const sections = config.sections ?? [];
+  const count = new Map<string, number>();
+  for (const p of config.payments) {
+    const g = p.group && sections.includes(p.group) ? p.group : '';
+    count.set(g, (count.get(g) ?? 0) + 1);
+  }
+  let best = '';
+  let max = 0;
+  for (const [g, n] of count) if (g && n > max) [best, max] = [g, n];
+  return max >= (count.get('') ?? 0) ? best : '';
+}
+
+/** ¿Hay ya un pago con la misma fecha y el mismo importe? (para no apuntarlo dos veces) */
+export function findSamePayment(config: Config, date: string, amount: number, skip: number | null = null): Payment | undefined {
+  const a = round2(Math.abs(amount));
+  return config.payments.find((p, i) => i !== skip && p.date === date && round2(Math.abs(p.amount)) === a);
 }
 
 export function addPayment(data: AppData, payment: Payment): AppData {

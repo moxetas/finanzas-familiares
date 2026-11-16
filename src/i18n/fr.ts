@@ -423,6 +423,8 @@ export const fr: Messages = {
   'field.date': 'Date',
   'field.concept': 'Poste',
   'field.estimated': 'Montant estimé (peut varier)',
+  'field.group': 'Bloc du tableau du mois',
+  'payment.same': 'Attention : « {name} » existe déjà ce jour-là avec le même montant. Un doublon ?',
   'field.note': 'Note',
   'field.optional': '(facultatif)',
   'field.required': 'Ce champ est obligatoire.',
