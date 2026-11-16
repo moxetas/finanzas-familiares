@@ -80,26 +80,47 @@ export function textField(opts: FieldBase & { value?: string; maxlength?: number
  * signo menos: con estos botones se pone o se quita sin salir del campo.
  */
 export function signButtons(input: HTMLInputElement, onChange?: () => void): HTMLElement {
-  const isNeg = () => /^\s*[-−]/.test(input.value);
+  const startsNeg = () => /^\s*[-−]/.test(input.value);
+  // El signo marcado se mantiene al escribir: si está en − y se escribe «800»
+  // encima, queda «-800». Se cambia con los botones (o escribiendo «+» o «-»).
+  let neg = startsNeg();
   const minus = h('button', { type: 'button', class: 'sign-btn', 'aria-label': t('field.sign.minus'), title: t('field.sign.minus') }, '−');
   const plus = h('button', { type: 'button', class: 'sign-btn', 'aria-label': t('field.sign.plus'), title: t('field.sign.plus') }, '+');
   const sync = () => {
-    minus.setAttribute('aria-pressed', String(isNeg()));
-    plus.setAttribute('aria-pressed', String(!isNeg()));
+    minus.setAttribute('aria-pressed', String(neg));
+    plus.setAttribute('aria-pressed', String(!neg));
   };
-  const set = (neg: boolean) => {
+  const set = (n: boolean) => {
+    neg = n;
     const digits = input.value.replace(/^\s*[-−+]\s*/, '');
-    input.value = neg ? `-${digits}` : digits;
+    input.value = n && digits ? `-${digits}` : digits;
     sync();
     input.dispatchEvent(new Event('input', { bubbles: true }));
     onChange?.();
   };
-  for (const [btn, neg] of [[minus, true], [plus, false]] as const) {
+  for (const [btn, n] of [[minus, true], [plus, false]] as const) {
     // Que el campo no pierda el foco (y el teclado no se cierre) al tocar el botón.
     btn.addEventListener('pointerdown', (ev) => ev.preventDefault());
-    btn.addEventListener('click', () => set(neg));
+    btn.addEventListener('click', () => set(n));
   }
-  input.addEventListener('input', sync);
+  input.addEventListener('input', () => {
+    const v = input.value;
+    if (/^\s*\+/.test(v)) {
+      neg = false;
+      input.value = v.replace(/^\s*\+\s*/, '');
+    } else if (startsNeg()) neg = true;
+    else if (neg && v.trim() !== '') {
+      const pos = input.selectionStart ?? v.length;
+      input.value = `-${v}`;
+      input.setSelectionRange(pos + 1, pos + 1);
+    }
+    sync();
+  });
+  // Por si el valor se cambió desde fuera, sin escribir.
+  input.addEventListener('focus', () => {
+    if (input.value.trim() !== '') neg = startsNeg();
+    sync();
+  });
   sync();
   return h('div', { class: 'sign-btns', role: 'group', 'aria-label': t('field.sign') }, minus, plus);
 }

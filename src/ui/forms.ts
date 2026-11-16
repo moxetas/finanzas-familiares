@@ -344,7 +344,10 @@ export function editOverride(ctx: Ctx, line: Line, month: number): void {
     return;
   }
   const ym = monthKey(ctx.data.config.year, month);
-  const amount = amountField({ label: t('field.amount'), value: line.amount, hint: t('override.normal', { amount: fmtMoney(line.base) }) });
+  // Se escribe con signo, como se ve en la tabla: un ingreso en +, un gasto, pago o traspaso en −.
+  // Con el signo contrario cuenta al revés ese mes (p. ej. un gasto en + es una devolución).
+  const dir = line.type === 'Ingreso' ? 1 : -1;
+  const amount = amountField({ label: t('field.amount'), value: dir * line.amount, allowNegative: true, hint: t('override.normal', { amount: fmtMoney(dir * line.base) }) });
   const apply = (value: number | null) => {
     const fn = line.kind === 'item' ? setItemOverride : setPaymentOverride;
     ctx.commit(fn(ctx.data, ym, line.index, value));
@@ -366,8 +369,9 @@ export function editOverride(ctx: Ctx, line: Line, month: number): void {
       label: t('action.save'),
       submit: true,
       onClick: () => {
-        const r = amount.read();
-        if (!r.ok || r.value === null) return false;
+        const r0 = amount.read();
+        if (!r0.ok || r0.value === null) return false;
+        const r = { value: dir * r0.value };
         // Si vuelve a ser el importe normal, no hace falta guardar el cambio. Salvo en un
         // sueldo: lo escrito a mano es lo cobrado (y así sale como confirmado en Sueldos).
         const keep = line.kind === 'item' && line.type === 'Ingreso' && /^sueldo /i.test(line.name.trim());

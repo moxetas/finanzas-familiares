@@ -263,7 +263,7 @@ export function removePayment(data: AppData, index: number): AppData {
 
 /** Cambia el importe de un concepto solo en el mes `ym`. `null` vuelve al normal. */
 export function setItemOverride(data: AppData, ym: string, index: number, amount: number | null): AppData {
-  return setDictValue(data, 'overrides', itemOverrideKey(ym, index), amount === null ? null : Math.abs(amount));
+  return setDictValue(data, 'overrides', itemOverrideKey(ym, index), amount);
 }
 
 /** Cambia una cifra de un mes de `history`. `null` vuelve a la original. Puede ser negativa. */
@@ -272,7 +272,7 @@ export function setHistoryCell(data: AppData, ym: string, row: number, col: numb
 }
 
 export function setPaymentOverride(data: AppData, ym: string, index: number, amount: number | null): AppData {
-  return setDictValue(data, 'overrides', paymentOverrideKey(ym, index), amount === null ? null : Math.abs(amount));
+  return setDictValue(data, 'overrides', paymentOverrideKey(ym, index), amount);
 }
 
 /** Apunta (o borra con `null`) el saldo real de una cuenta a fin del mes `ym`. */

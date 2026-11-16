@@ -124,10 +124,10 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     const [, kind, idx] = m;
     const limit = kind === 'i' ? items.length : payments.length;
     return Number(idx) < limit;
-  }, true);
+  });
   const real_balances = numericDict(root['real_balances'], /^\d{4}-\d{2}_c\d+$/, (key) => {
     return Number(/_c(\d+)$/.exec(key)![1]) < n;
-  }, false);
+  });
 
   const entries: Entry[] = [];
   const seen = new Set<string>();
@@ -277,7 +277,6 @@ function numericDict(
   v: unknown,
   pattern: RegExp,
   valid: (key: string) => boolean,
-  positive: boolean,
 ): Record<string, number> {
   const out: Record<string, number> = {};
   if (!isObj(v)) return out;
@@ -286,8 +285,8 @@ function numericDict(
     if (count >= MAX.keys) break;
     if (!pattern.test(key) || !valid(key)) continue;
     if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-    // Solo los importes de conceptos y pagos son siempre positivos; el resto puede ser negativo.
-    out[key] = positive && /_[ip]\d+$/.test(key) ? Math.abs(round2(value)) : round2(value);
+    // Los importes de un mes pueden ir con el signo contrario (p. ej. una devolución).
+    out[key] = round2(value);
     count++;
   }
   return out;

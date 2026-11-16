@@ -29,3 +29,14 @@ describe('bloque de los pagos', () => {
     expect(findSamePayment(c, '2027-01-02', 375.87)).toBeUndefined();
   });
 });
+
+import { monthLines, setItemOverride } from '../src/calc';
+
+describe('importe de un mes con el signo contrario', () => {
+  it('un gasto en + ese mes suma (una devolución)', () => {
+    const d0 = data(config([]));
+    d0.config.items.push({ name: 'Gastos anuales', type: 'Gasto', amount: 500, account: 0, to: -1, from_month: 1, to_month: 12 });
+    expect(monthLines(setItemOverride(d0, '2027-01', 0, 800), 1)[0]!.deltas[0]).toBe(-800);
+    expect(monthLines(setItemOverride(d0, '2027-01', 0, -100), 1)[0]!.deltas[0]).toBe(100);
+  });
+});

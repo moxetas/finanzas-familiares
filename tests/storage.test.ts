@@ -78,7 +78,8 @@ describe('limpieza de datos importados', () => {
     expect(d.config.payments).toEqual([
       { date: '2027-02-28', concept: '<img src=x onerror=alert(1)>', amount: 3, account: 1, estimated: false },
     ]);
-    expect(d.overrides).toEqual({ '2027-01_i0': 5, '2027-01_p0': 7 });
+    // El importe de un mes puede llevar el signo contrario (p. ej. una devolución).
+    expect(d.overrides).toEqual({ '2027-01_i0': -5, '2027-01_p0': 7 });
     expect(d.real_balances).toEqual({ '2027-01_c1': -20 });
     expect(d.entries.map((e) => [e.month, e.concept, e.date, e.account, e.note])).toEqual([
       ['2027-01', 'Uno', '', 0, ''],
