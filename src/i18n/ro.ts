@@ -95,6 +95,7 @@ export const ro: Messages = {
   'months.col.note': 'Note',
   'months.spent': 'se cheltuiește',
   'months.history.sub': 'Exact cum era în foaia ta de calcul. Atinge o cifră ca s-o modifici; totalul se recalculează.',
+  'months.history.fromReal': 'Sold real introdus luna trecută',
   'history.cell.hint': 'Se modifică doar această cifră; totalul lunii se recalculează.',
   'nav.dom': 'Debitări',
   'nav.income': 'Salarii',

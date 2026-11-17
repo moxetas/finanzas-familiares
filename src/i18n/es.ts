@@ -97,6 +97,7 @@ export const es = {
   'months.col.note': 'Notas',
   'months.spent': 'se gasta',
   'months.history.sub': 'Tal como estaba en tu hoja. Toca una cifra para cambiarla; el total se recalcula.',
+  'months.history.fromReal': 'Saldo real apuntado el mes anterior',
   'history.cell.hint': 'Solo cambia esta cifra; el total del mes se recalcula.',
   'nav.dom': 'Domicil.',
   'nav.income': 'Sueldos',

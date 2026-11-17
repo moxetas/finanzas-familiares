@@ -15,6 +15,7 @@ import { signButtons } from '../fields';
 import { openImport } from '../import-ai';
 import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
 import { isDebtLabel } from '../../calc/debts';
+import { historyCarry } from '../../calc/history-carry';
 import { freeRows, transferRow } from '../extra-rows';
 import { dragHandle, makeSortable } from '../sortable';
 
@@ -112,7 +113,13 @@ export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
 function historyView(ctx: Ctx, ym: string): HTMLElement {
   const m = ctx.data.history![ym]!;
   const { overrides, real_balances } = ctx.data;
-  const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => overrides[historyCellKey(ym, ri, ci)] ?? orig));
+  // «Ahorrado» toma el saldo real apuntado el mes anterior (si no se cambió a mano).
+  const carry = historyCarry(ctx.data, ym);
+  const ovr = (ri: number, ci: number): number | undefined => {
+    const k = historyCellKey(ym, ri, ci);
+    return overrides[k] ?? carry[k];
+  };
+  const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => ovr(ri, ci) ?? orig));
   const extras = monthExtras(ctx.data, ym, m.cols.length);
   const effect = extrasEffect(extras);
   // La fila «Deuda» es informativa: no cuenta en el total de la columna.
@@ -124,13 +131,15 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     if (Math.abs((base ?? 0) - sumAll) < 0.02) m.rows.forEach((r, ri) => debtRows[ri] && (v -= r.v[ci] ?? 0));
     m.rows.forEach((r, ri) => {
       if (debtRows[ri]) return;
-      const o = overrides[historyCellKey(ym, ri, ci)];
+      const o = ovr(ri, ci);
       if (o !== undefined) v += o - (r.v[ci] ?? 0);
     });
     return Math.round(v * 100) / 100;
   });
   const cell = (value: number | null, ri: number, ci: number, label: string) => {
-    const changed = overrides[historyCellKey(ym, ri, ci)] !== undefined;
+    const k = historyCellKey(ym, ri, ci);
+    const fromReal = carry[k] !== undefined;
+    const changed = overrides[k] !== undefined || fromReal;
     return h(
       'td',
       { class: 'n' },
@@ -139,7 +148,8 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
         {
           type: 'button',
           class: `cell-btn${(value ?? 0) < 0 ? ' neg' : ''}${changed ? ' is-changed' : ''}`,
-          'aria-label': `${t('action.edit')} ${label}`,
+          title: fromReal ? t('months.history.fromReal') : undefined,
+          'aria-label': `${t('action.edit')} ${label}${fromReal ? ` · ${t('months.history.fromReal')}` : ''}`,
           'data-focus-key': `hcell-${ri}-${ci}`,
           onclick: () => editHistoryCell(ctx, ym, ri, ci, label),
         },

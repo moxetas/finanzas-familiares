@@ -95,6 +95,7 @@ export const fr: Messages = {
   'months.col.note': 'Notes',
   'months.spent': 'dépensé',
   'months.history.sub': 'Tel quel dans votre tableur. Touchez un chiffre pour le modifier ; le total est recalculé.',
+  'months.history.fromReal': 'Solde réel saisi le mois précédent',
   'history.cell.hint': 'Seul ce chiffre change ; le total du mois est recalculé.',
   'nav.dom': 'Prélèv.',
   'nav.income': 'Salaires',

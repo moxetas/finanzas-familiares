@@ -95,6 +95,7 @@ export const ar: Messages = {
   'months.col.note': 'ملاحظات',
   'months.spent': 'يُصرف',
   'months.history.sub': 'كما كان في جدولك. المس رقمًا لتغييره؛ يُعاد حساب المجموع.',
+  'months.history.fromReal': 'الرصيد الفعلي المسجل في الشهر السابق',
   'history.cell.hint': 'يتغير هذا الرقم فقط؛ ويُعاد حساب مجموع الشهر.',
   'nav.dom': 'الخصومات',
   'nav.income': 'الرواتب',

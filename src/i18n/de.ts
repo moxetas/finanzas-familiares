@@ -95,6 +95,7 @@ export const de: Messages = {
   'months.col.note': 'Notizen',
   'months.spent': 'wird ausgegeben',
   'months.history.sub': 'So wie in deiner Tabelle. Tippe auf eine Zahl, um sie zu ändern; die Summe wird neu berechnet.',
+  'months.history.fromReal': 'Im Vormonat eingetragener echter Kontostand',
   'history.cell.hint': 'Nur diese Zahl ändert sich; die Monatssumme wird neu berechnet.',
   'nav.dom': 'Lastschr.',
   'nav.income': 'Gehälter',

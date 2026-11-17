@@ -95,6 +95,7 @@ export const en: Messages = {
   'months.col.note': 'Notes',
   'months.spent': 'spent',
   'months.history.sub': 'Just as it was in your spreadsheet. Tap a figure to change it; the total is recalculated.',
+  'months.history.fromReal': 'Actual balance entered the month before',
   'history.cell.hint': 'Only this figure changes; the month total is recalculated.',
   'nav.dom': 'Debits',
   'nav.income': 'Salaries',

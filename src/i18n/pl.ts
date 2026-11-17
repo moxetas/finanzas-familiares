@@ -95,6 +95,7 @@ export const pl: Messages = {
   'months.col.note': 'Notatki',
   'months.spent': 'wydawane',
   'months.history.sub': 'Tak jak w twoim arkuszu. Dotknij liczby, aby ją zmienić; suma zostanie przeliczona.',
+  'months.history.fromReal': 'Rzeczywiste saldo wpisane w poprzednim miesiącu',
   'history.cell.hint': 'Zmienia się tylko ta liczba; suma miesiąca zostanie przeliczona.',
   'nav.dom': 'Polecenia',
   'nav.income': 'Pensje',
