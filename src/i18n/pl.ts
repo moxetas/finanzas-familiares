@@ -405,7 +405,7 @@ export const pl: Messages = {
   'settings.install.ios': 'Na iPhonie lub iPadzie: otwórz tę stronę w Safari, dotknij Udostępnij (kwadrat ze strzałką) i wybierz „Do ekranu początkowego”.',
   'settings.install.android': 'Na Androidzie: otwórz menu przeglądarki (⋮) i wybierz „Zainstaluj aplikację” lub „Dodaj do ekranu głównego”.',
   'settings.language': 'Język',
-  'settings.language.hint': 'Za pierwszym razem aplikacja otwiera się w języku telefonu. Nazwy, które wpisujesz, nie są tłumaczone.',
+  'settings.language.hint': 'Za pierwszym razem aplikacja pyta o język. Nazwy, które wpisujesz, nie są tłumaczone.',
   'settings.theme': 'Wygląd',
   'settings.theme.auto': 'Automatyczny',
   'settings.theme.light': 'Jasny',
@@ -558,4 +558,6 @@ export const pl: Messages = {
   'ex.brokenScreen': 'Zbity ekran',
   'ex.book': 'Sprzedaż używanej książki',
   'cloudOnly.text': 'Pamięć telefonu nie odpowiada. Widzisz dane z chmury i to, co zmienisz, zapisuje się tam. Zamknij aplikację całkowicie i otwórz ją później.',
+  'lang.pick.title': 'Wybierz język',
+  'lang.pick.hint': 'Możesz go później zmienić w Ustawieniach.',
 };

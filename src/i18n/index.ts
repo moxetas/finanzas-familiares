@@ -10,6 +10,7 @@ import { es, type MessageKey, type Messages } from './es';
 import { fr } from './fr';
 import { pl } from './pl';
 import { ro } from './ro';
+import { ru } from './ru';
 
 export type { MessageKey } from './es';
 
@@ -35,6 +36,7 @@ const LOCALES = {
   en: { tag: 'en-GB', name: 'English', dir: 'ltr', currency: 'EUR', messages: en },
   pl: { tag: 'pl-PL', name: 'Polski', dir: 'ltr', currency: 'EUR', messages: pl },
   ro: { tag: 'ro-RO', name: 'Română', dir: 'ltr', currency: 'EUR', messages: ro },
+  ru: { tag: 'ru-RU', name: 'Русский', dir: 'ltr', currency: 'EUR', messages: ru },
   fr: { tag: 'fr-FR', name: 'Français', dir: 'ltr', currency: 'EUR', messages: fr },
   ar: { tag: 'ar-u-nu-latn', name: 'العربية', dir: 'rtl', currency: 'EUR', messages: ar },
 } satisfies Record<string, Locale>;

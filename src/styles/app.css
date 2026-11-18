@@ -2041,3 +2041,24 @@ html.has-wall body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Elegir idioma la primera vez */
+.lang-pick {
+  padding-top: max(48px, env(safe-area-inset-top));
+}
+.lang-pick-title {
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin: 0;
+}
+.lang-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+.lang-pick-list .btn {
+  width: 100%;
+  font-size: 1.0625rem;
+}

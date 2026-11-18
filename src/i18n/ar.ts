@@ -405,7 +405,7 @@ export const ar: Messages = {
   'settings.install.ios': 'في iPhone أو iPad: افتح هذه الصفحة في Safari، والمس «مشاركة» (المربع مع السهم) واختر «إضافة إلى الشاشة الرئيسية».',
   'settings.install.android': 'في Android: افتح قائمة المتصفح (⋮) واختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».',
   'settings.language': 'اللغة',
-  'settings.language.hint': 'في المرة الأولى يُفتح التطبيق بلغة الهاتف. الأسماء التي تكتبها بنفسك لا تُترجم.',
+  'settings.language.hint': 'في المرة الأولى يسألك التطبيق عن اللغة. الأسماء التي تكتبها بنفسك لا تُترجم.',
   'settings.theme': 'المظهر',
   'settings.theme.auto': 'تلقائي',
   'settings.theme.light': 'فاتح',
@@ -558,4 +558,6 @@ export const ar: Messages = {
   'ex.brokenScreen': 'شاشة مكسورة',
   'ex.book': 'بيع كتاب مستعمل',
   'cloudOnly.text': 'ذاكرة الهاتف لا تستجيب. أنت ترى بيانات السحابة وما تغيّره يُحفظ هناك. أغلق التطبيق تمامًا وافتحه لاحقًا.',
+  'lang.pick.title': 'اختر لغتك',
+  'lang.pick.hint': 'يمكنك تغييرها لاحقًا من الإعدادات.',
 };

@@ -6,13 +6,14 @@ import { es } from '../src/i18n/es';
 import { fr } from '../src/i18n/fr';
 import { pl } from '../src/i18n/pl';
 import { ro } from '../src/i18n/ro';
+import { ru } from '../src/i18n/ru';
 import { detectLang, fmtMoney, fmtNumber, LANGS, setLocale } from '../src/i18n';
 import { parseAmount } from '../src/calc';
 
 const vars = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 describe('traducciones', () => {
-  const all = { ar, de, en, fr, pl, ro };
+  const all = { ar, de, en, fr, pl, ro, ru };
 
   it('cada idioma tiene todos los textos, sin vacíos, y con los mismos {huecos}', () => {
     for (const [lang, msgs] of Object.entries(all)) {
@@ -29,9 +30,10 @@ describe('traducciones', () => {
     expect(detectLang(['de-AT', 'en'])).toBe('de');
     expect(detectLang(['pt-BR', 'ro-RO'])).toBe('ro');
     expect(detectLang(['ar-MA'])).toBe('ar');
+    expect(detectLang(['ru-RU'])).toBe('ru');
     expect(detectLang(['ja-JP'])).toBe('en');
     expect(detectLang([])).toBe('en');
-    expect(LANGS).toEqual(['es', 'de', 'en', 'pl', 'ro', 'fr', 'ar']);
+    expect(LANGS).toEqual(['es', 'de', 'en', 'pl', 'ro', 'ru', 'fr', 'ar']);
   });
 
   it('en todos los idiomas, un importe escrito se lee bien', () => {

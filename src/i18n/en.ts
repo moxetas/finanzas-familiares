@@ -405,7 +405,7 @@ export const en: Messages = {
   'settings.install.ios': 'On iPhone or iPad: open this page in Safari, tap Share (the square with the arrow) and choose “Add to Home Screen”.',
   'settings.install.android': 'On Android: open the browser menu (⋮) and choose “Install app” or “Add to Home screen”.',
   'settings.language': 'Language',
-  'settings.language.hint': 'The first time, the app opens in your phone’s language. Names you type are not translated.',
+  'settings.language.hint': 'The first time, the app asks for your language. Names you type are not translated.',
   'settings.theme': 'Appearance',
   'settings.theme.auto': 'Automatic',
   'settings.theme.light': 'Light',
@@ -558,4 +558,6 @@ export const en: Messages = {
   'ex.brokenScreen': 'Broken screen',
   'ex.book': 'Sold a used book',
   'cloudOnly.text': 'The phone’s storage is not responding. You are seeing the cloud data and whatever you change is saved there. Close the app completely and open it again later.',
+  'lang.pick.title': 'Choose your language',
+  'lang.pick.hint': 'You can change it later in Settings.',
 };

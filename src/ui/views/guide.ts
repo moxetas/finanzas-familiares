@@ -7,9 +7,12 @@ import { h } from '../dom';
 import { openImport } from '../import-ai';
 import { startBlank, useExampleAsMine } from '../notices';
 
+/** Idiomas que aún no tienen guía en PDF: se da la inglesa. */
+const NO_PDF = new Set<string>(['ru']);
+
 /** La guía en PDF en el idioma de la app (public/guia.pdf es la española). */
 function guidePdf(): { href: string; download: string } {
-  const lang = currentLocale();
+  const lang = NO_PDF.has(currentLocale()) ? 'en' : currentLocale();
   return { href: lang === 'es' ? 'guia.pdf' : `guia-${lang}.pdf`, download: `${t('app.name').replace(/\s+/g, '-')}.pdf` };
 }
 

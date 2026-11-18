@@ -405,7 +405,7 @@ export const fr: Messages = {
   'settings.install.ios': 'Sur iPhone ou iPad : ouvrez cette page dans Safari, touchez Partager (le carré avec la flèche) et choisissez « Sur l’écran d’accueil ».',
   'settings.install.android': 'Sur Android : ouvrez le menu du navigateur (⋮) et choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».',
   'settings.language': 'Langue',
-  'settings.language.hint': 'La première fois, l’app s’ouvre dans la langue du téléphone. Les noms que vous écrivez ne sont pas traduits.',
+  'settings.language.hint': 'La première fois, l’app vous demande la langue. Les noms que vous écrivez ne sont pas traduits.',
   'settings.theme': 'Apparence',
   'settings.theme.auto': 'Automatique',
   'settings.theme.light': 'Clair',
@@ -558,4 +558,6 @@ export const fr: Messages = {
   'ex.brokenScreen': 'Écran cassé',
   'ex.book': 'Vente d’un livre d’occasion',
   'cloudOnly.text': 'La mémoire du téléphone ne répond pas. Vous voyez les données du cloud et ce que vous modifiez y est enregistré. Fermez complètement l’app et rouvrez-la plus tard.',
+  'lang.pick.title': 'Choisissez votre langue',
+  'lang.pick.hint': 'Vous pourrez la changer plus tard dans Réglages.',
 };

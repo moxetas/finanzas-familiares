@@ -405,7 +405,7 @@ export const ro: Messages = {
   'settings.install.ios': 'Pe iPhone sau iPad: deschide această pagină în Safari, atinge Partajează (pătratul cu săgeata) și alege „Adaugă pe ecranul principal”.',
   'settings.install.android': 'Pe Android: deschide meniul browserului (⋮) și alege „Instalează aplicația” sau „Adaugă pe ecranul de pornire”.',
   'settings.language': 'Limbă',
-  'settings.language.hint': 'Prima dată, aplicația se deschide în limba telefonului. Numele pe care le scrii tu nu se traduc.',
+  'settings.language.hint': 'Prima dată, aplicația te întreabă limba. Numele pe care le scrii tu nu se traduc.',
   'settings.theme': 'Aspect',
   'settings.theme.auto': 'Automat',
   'settings.theme.light': 'Luminos',
@@ -558,4 +558,6 @@ export const ro: Messages = {
   'ex.brokenScreen': 'Ecran spart',
   'ex.book': 'Vândut o carte folosită',
   'cloudOnly.text': 'Memoria telefonului nu răspunde. Vezi datele din cloud și ce modifici se salvează acolo. Închide complet aplicația și deschide-o din nou mai târziu.',
+  'lang.pick.title': 'Alege limba',
+  'lang.pick.hint': 'O poți schimba mai târziu din Setări.',
 };

@@ -1,6 +1,6 @@
 import './styles/fonts.css';
 import './styles/app.css';
-import { currentLocale, detectLang, setLocale, t } from './i18n';
+import { currentLocale, detectLang, LANGS, langName, setLocale, t, type Lang } from './i18n';
 import { applyDocumentLang, savedLang, saveLang } from './ui/lang';
 import { h } from './ui/dom';
 import { mountApp } from './ui/app';
@@ -8,18 +8,49 @@ import { Store } from './ui/store';
 import { applyTheme } from './ui/theme';
 import { registerServiceWorker } from './ui/sw-register';
 
+/**
+ * La primera vez se pregunta el idioma (el del teléfono sale el primero y
+ * marcado). Se pregunta antes de abrir los datos para que el ejemplo y la guía
+ * salgan ya en el idioma elegido.
+ */
+function askLang(root: HTMLElement): Promise<Lang> {
+  const phone = detectLang();
+  setLocale(phone);
+  const order = [phone, ...LANGS.filter((l) => l !== phone)];
+  return new Promise((resolve) => {
+    root.replaceChildren(
+      h(
+        'div',
+        { class: 'boot lang-pick' },
+        h('h1', { class: 'lang-pick-title' }, t('lang.pick.title')),
+        h(
+          'div',
+          { class: 'lang-pick-list', role: 'group', 'aria-label': t('lang.pick.title') },
+          order.map((code) =>
+            h(
+              'button',
+              { type: 'button', class: `btn ${code === phone ? 'btn-primary' : 'btn-secondary'}`, lang: code, onclick: () => resolve(code) },
+              langName(code),
+            ),
+          ),
+        ),
+        h('p', { class: 'boot-hint' }, t('lang.pick.hint')),
+      ),
+    );
+  });
+}
+
 async function start(): Promise<void> {
-  // Idioma: el elegido en este aparato o, si no hay, el del teléfono (también para el ejemplo).
-  const chosen = savedLang();
-  setLocale(chosen ?? detectLang());
+  // Idioma: el elegido en este aparato o, si no hay, se pregunta.
   const root = document.getElementById('app')!;
+  let chosen = savedLang();
+  if (!chosen) {
+    chosen = await askLang(root);
+    saveLang(chosen);
+  }
+  setLocale(chosen);
   try {
     const store = await Store.open();
-    if (!chosen) {
-      // Quien ya usaba la app (antes solo había español) sigue en español; una app nueva, en el idioma del teléfono.
-      if (!store.firstRun) setLocale('es');
-      saveLang(store.firstRun ? detectLang() : 'es');
-    }
     applyDocumentLang(currentLocale());
     applyTheme(store.state.meta.theme ?? 'auto');
     mountApp(root, store);

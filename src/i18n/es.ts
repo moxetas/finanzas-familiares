@@ -407,7 +407,7 @@ export const es = {
   'settings.install.ios': 'En iPhone o iPad: abre esta página en Safari, toca Compartir (el cuadrado con la flecha) y elige «Añadir a pantalla de inicio».',
   'settings.install.android': 'En Android: abre el menú del navegador (⋮) y elige «Instalar aplicación» o «Añadir a pantalla de inicio».',
   'settings.language': 'Idioma',
-  'settings.language.hint': 'La primera vez, la app se abre en el idioma del teléfono. Los nombres que tú escribes no se traducen.',
+  'settings.language.hint': 'La primera vez, la app te pregunta el idioma. Los nombres que tú escribes no se traducen.',
   'settings.theme': 'Apariencia',
   'settings.theme.auto': 'Automática',
   'settings.theme.light': 'Clara',
@@ -561,6 +561,8 @@ export const es = {
   'ex.brokenScreen': 'Pantalla rota',
   'ex.book': 'Venta de un libro usado',
   'cloudOnly.text': 'La memoria del móvil no responde. Estás viendo los datos de la nube y lo que cambies se guarda allí. Cierra la app del todo y vuelve a abrirla más tarde.',
+  'lang.pick.title': 'Elige tu idioma',
+  'lang.pick.hint': 'Puedes cambiarlo después en Ajustes.',
 } as const;
 
 export type MessageKey = keyof typeof es;

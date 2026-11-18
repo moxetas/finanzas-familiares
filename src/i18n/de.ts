@@ -405,7 +405,7 @@ export const de: Messages = {
   'settings.install.ios': 'Auf iPhone oder iPad: Öffne diese Seite in Safari, tippe auf Teilen (das Quadrat mit dem Pfeil) und wähle „Zum Home-Bildschirm“.',
   'settings.install.android': 'Auf Android: Öffne das Browsermenü (⋮) und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“.',
   'settings.language': 'Sprache',
-  'settings.language.hint': 'Beim ersten Mal öffnet sich die App in der Sprache des Handys. Namen, die du selbst schreibst, werden nicht übersetzt.',
+  'settings.language.hint': 'Beim ersten Öffnen fragt die App nach der Sprache. Namen, die du selbst schreibst, werden nicht übersetzt.',
   'settings.theme': 'Darstellung',
   'settings.theme.auto': 'Automatisch',
   'settings.theme.light': 'Hell',
@@ -558,4 +558,6 @@ export const de: Messages = {
   'ex.brokenScreen': 'Display kaputt',
   'ex.book': 'Gebrauchtes Buch verkauft',
   'cloudOnly.text': 'Der Speicher des Handys reagiert nicht. Du siehst die Daten aus der Cloud und was du änderst, wird dort gespeichert. Schließ die App ganz und öffne sie später wieder.',
+  'lang.pick.title': 'Wähle deine Sprache',
+  'lang.pick.hint': 'Du kannst sie später in den Einstellungen ändern.',
 };
