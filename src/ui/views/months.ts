@@ -13,9 +13,9 @@ import { editDebt, editEntry, editHistoryCell, editOverride, editStart } from '.
 import { icon } from '../icons';
 import { signButtons } from '../fields';
 import { openImport } from '../import-ai';
-import { extrasEffect, isFreeRowsAnchor, monthExtras } from '../../calc/extras';
-import { isDebtLabel } from '../../calc/debts';
-import { historyCarry } from '../../calc/history-carry';
+import { isFreeRowsAnchor } from '../../calc/extras';
+import { historyMonth, prevMonth } from '../../calc/history-carry';
+import { monthPdfButton } from '../report-actions';
 import { freeRows, transferRow } from '../extra-rows';
 import { dragHandle, makeSortable } from '../sortable';
 
@@ -95,6 +95,7 @@ export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
     'div',
     { class: 'view view-months' },
     monthNav(ctx, config.year, month),
+    monthPdfButton(ctx, ym),
     h(
       'div',
       { class: 'kpis kpis-4' },
@@ -113,33 +114,12 @@ export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
 function historyView(ctx: Ctx, ym: string): HTMLElement {
   const m = ctx.data.history![ym]!;
   const { overrides, real_balances } = ctx.data;
-  // «Ahorrado» toma el saldo real apuntado el mes anterior (si no se cambió a mano).
-  const carry = historyCarry(ctx.data, ym);
-  const ovr = (ri: number, ci: number): number | undefined => {
-    const k = historyCellKey(ym, ri, ci);
-    return overrides[k] ?? carry[k];
-  };
-  const edited = m.rows.map((r, ri) => r.v.map((orig, ci) => ovr(ri, ci) ?? orig));
-  const extras = monthExtras(ctx.data, ym, m.cols.length);
-  const effect = extrasEffect(extras);
-  // La fila «Deuda» es informativa: no cuenta en el total de la columna.
-  const debtRows = m.rows.map((r) => isDebtLabel(r.l));
-  const tot = m.tot.map((base, ci) => {
-    let v = (base ?? 0) + (effect.delta[ci] ?? 0);
-    const sumAll = m.rows.reduce((acc, r) => acc + (r.v[ci] ?? 0), 0);
-    // Si el total de la hoja incluía la deuda, se le quita.
-    if (Math.abs((base ?? 0) - sumAll) < 0.02) m.rows.forEach((r, ri) => debtRows[ri] && (v -= r.v[ci] ?? 0));
-    m.rows.forEach((r, ri) => {
-      if (debtRows[ri]) return;
-      const o = ovr(ri, ci);
-      if (o !== undefined) v += o - (r.v[ci] ?? 0);
-    });
-    return Math.round(v * 100) / 100;
-  });
+  // Cifras con los cambios a mano, saldo que sobró el mes anterior y totales por columna.
+  const { prevBalance, edited, extras, debtRows, tot } = historyMonth(ctx.data, ym);
+  const prevName = monthName(Number(prevMonth(ym).slice(5, 7)));
   const cell = (value: number | null, ri: number, ci: number, label: string) => {
     const k = historyCellKey(ym, ri, ci);
-    const fromReal = carry[k] !== undefined;
-    const changed = overrides[k] !== undefined || fromReal;
+    const changed = overrides[k] !== undefined;
     return h(
       'td',
       { class: 'n' },
@@ -148,8 +128,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
         {
           type: 'button',
           class: `cell-btn${(value ?? 0) < 0 ? ' neg' : ''}${changed ? ' is-changed' : ''}`,
-          title: fromReal ? t('months.history.fromReal') : undefined,
-          'aria-label': `${t('action.edit')} ${label}${fromReal ? ` · ${t('months.history.fromReal')}` : ''}`,
+          'aria-label': `${t('action.edit')} ${label}`,
           'data-focus-key': `hcell-${ri}-${ci}`,
           onclick: () => editHistoryCell(ctx, ym, ri, ci, label),
         },
@@ -185,6 +164,15 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     h(
       'tbody',
       null,
+      // Lo que sobró a fin del mes anterior (saldo real apuntado): suma a este mes, no es ahorro.
+      prevBalance
+        ? h(
+            'tr',
+            { class: 'row-sum row-start' },
+            h('th', { scope: 'row' }, t('months.history.prevBalance'), h('span', { class: 'debt-note' }, t('months.history.prevBalance.hint', { month: prevName }))),
+            prevBalance.map((v) => h('td', { class: `n${(v ?? 0) < 0 ? ' neg' : ''}` }, v === null ? '–' : fmtNumber(v, { sign: true }))),
+          )
+        : null,
       historyBody(),
       h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), tot.map((v) => h('td', { class: 'n strong' }, money(v, { plain: true })))),
     ),
@@ -213,6 +201,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     'div',
     { class: 'view view-months' },
     monthNav(ctx, Number(ym.slice(0, 4)), Number(ym.slice(5, 7))),
+    monthPdfButton(ctx, ym),
     card(
       { title: m.title, sub: t('months.history.sub'), id: 'plan', className: ordering ? 'is-ordering' : '', actions: orderButton() },
       h('p', { class: 'field-hint order-hint' }, t('months.order.hint')),
