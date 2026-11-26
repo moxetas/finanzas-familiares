@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPlanCharges, chargeLabel, planCharges, planDates, removeCharges, removePlanCharges, saveDomRow } from '../src/calc';
+import { addPlanCharges, blankData, chargeLabel, monthExtras, planCharges, planDates, removeCharges, removePlanCharges, saveDomRow } from '../src/calc';
 import type { AppData, DomPlan, Payment } from '../src/calc/types';
 
 const BOTE = 'Pagos de este mes · salen del bote';
@@ -78,5 +78,54 @@ describe('se guarda y se vuelve a leer igual', () => {
     const back = sanitizeData(JSON.parse(JSON.stringify(d)), 2027, 'Cuenta');
     expect(back.domiciliaciones!.groups[0]!.rows[0]!.plan).toEqual(plan);
     expect(back.config.payments.filter((p) => p.dom === 'k').length).toBe(4);
+  });
+});
+
+describe('domiciliación: bloque de su cuenta y meses de la hoja', () => {
+  function data2(): AppData {
+    const base = blankData(2027, 'ING.GIRO');
+    return {
+      ...base,
+      config: {
+        ...base.config,
+        accounts: [{ name: 'ING.GIRO', initial: 0 }, { name: 'BANKIA', initial: 0 }],
+        sections: ['GASTOS FIJOS ALEMANIA', 'ESPAÑA · BANKIA'],
+        items: [
+          { name: 'HIPOTECA', type: 'Gasto', amount: 806, account: 0, to: -1, from_month: 1, to_month: 12, group: 'GASTOS FIJOS ALEMANIA' },
+          { name: 'LUZ', type: 'Gasto', amount: 250, account: 0, to: -1, from_month: 1, to_month: 12, group: 'GASTOS FIJOS ALEMANIA' },
+          { name: 'YOIGO', type: 'Gasto', amount: 15, account: 1, to: -1, from_month: 1, to_month: 12, group: 'ESPAÑA · BANKIA' },
+        ],
+      },
+      history: {
+        '2026-11': { title: 'Noviembre 2026', cols: ['ING.GIRO', 'Bankia'], rows: [{ l: 'Luz', v: [-250, null] }], tot: [-250, null] },
+        '2026-12': { title: 'Diciembre 2026', cols: ['ING.GIRO', 'Bankia'], rows: [{ l: 'Luz', v: [-250, null] }], tot: [-250, null] },
+      },
+    };
+  }
+  const netflix: DomPlan = { link: 'nfx', every: 1, first: '2026-11-24', account: 1 };
+
+  it('cada mes de BANKIA va al bloque de BANKIA, no al más usado', () => {
+    const d = addPlanCharges(data2(), netflix, 'Netflix', 14.99, '');
+    const it = d.config.items.find((x) => x.dom === 'nfx')!;
+    expect(it).toMatchObject({ account: 1, group: 'ESPAÑA · BANKIA', from_month: 1, amount: 14.99 });
+  });
+
+  it('noviembre y diciembre de 2026 (meses de la hoja) reciben el cargo en una fila libre, columna BANKIA', () => {
+    const d = addPlanCharges(data2(), netflix, 'Netflix', 14.99, '');
+    for (const ym of ['2026-11', '2026-12']) {
+      const ex = monthExtras(d, ym, 2);
+      expect(ex.free[0]).toEqual({ label: 'Netflix', values: [null, -14.99] });
+    }
+    // Volver a guardarla no lo duplica.
+    const again = addPlanCharges(d, netflix, 'Netflix', 14.99, '2026-11-26');
+    expect(monthExtras(again, '2026-12', 2).free[1]!.label).toBe('');
+  });
+
+  it('al cambiarla o borrarla desde hoy, se quitan los cargos de la hoja desde hoy; los pasados se quedan', () => {
+    const d = addPlanCharges(data2(), netflix, 'Netflix', 14.99, '');
+    const r = removePlanCharges(d, 'nfx', '2026-11-26');
+    expect(monthExtras(r, '2026-11', 2).free[0]!.values[1]).toBe(-14.99);
+    expect(monthExtras(r, '2026-12', 2).free[0]).toEqual({ label: '', values: [null, null] });
+    expect(r.config.items.some((x) => x.dom === 'nfx')).toBe(false);
   });
 });

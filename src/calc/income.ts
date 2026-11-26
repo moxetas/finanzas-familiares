@@ -9,7 +9,7 @@
  */
 
 import { norm } from './debts';
-import { itemOverrideKey, monthKey } from './keys';
+import { historyCellKey, itemOverrideKey, monthKey } from './keys';
 import { round2 } from './money';
 import type { AppData, BtcTrade, SalaryPerson } from './types';
 
@@ -145,12 +145,52 @@ export function salaryItemIndex(data: AppData, person: SalaryPerson): number {
   return data.config.items.findIndex((it) => it.type === 'Ingreso' && norm(it.name) === want);
 }
 
+/** Mes siguiente y anterior a «AAAA-MM». */
+const nextYm = (ym: string) => {
+  const y = Number(ym.slice(0, 4));
+  const m = Number(ym.slice(5, 7));
+  return m === 12 ? monthKey(y + 1, 1) : monthKey(y, m + 1);
+};
+const prevYm = (ym: string) => {
+  const y = Number(ym.slice(0, 4));
+  const m = Number(ym.slice(5, 7));
+  return m === 1 ? monthKey(y - 1, 12) : monthKey(y, m - 1);
+};
+
 /**
- * Los meses del año planificado salen de la pestaña Meses: lo que se escribe allí en
- * el sueldo de ese mes cuenta como cobrado; el resto, como estimado (el importe del
- * concepto). Devuelve la persona con esos meses y desde qué mes se estima solo.
+ * Como en la hoja: la fila «Sueldo <nombre>» de un mes en Meses lleva el sueldo
+ * del mes ANTERIOR (lo de noviembre se apunta en diciembre). Celda de Meses donde
+ * va el sueldo de `salaryYm`, o null si no hay (entonces se guarda en Sueldos).
  */
-export function withPlannedYear(data: AppData, person: SalaryPerson): { person: SalaryPerson; autoAfter: string | undefined } {
+export type SalaryCell = { kind: 'item'; ym: string; index: number } | { kind: 'history'; ym: string; row: number; col: number };
+
+export function salaryCell(data: AppData, person: SalaryPerson, salaryYm: string): SalaryCell | null {
+  const ym = nextYm(salaryYm);
+  const year = Number(ym.slice(0, 4));
+  if (year === data.config.year) {
+    const index = salaryItemIndex(data, person);
+    const item = data.config.items[index];
+    const m = Number(ym.slice(5, 7));
+    return item && m >= item.from_month && m <= item.to_month ? { kind: 'item', ym, index } : null;
+  }
+  const hm = year < data.config.year ? data.history?.[ym] : undefined;
+  if (!hm) return null;
+  const row = hm.rows.findIndex((r) => norm(r.l) === norm(`sueldo ${person.name}`));
+  if (row < 0) return null;
+  const col = Math.max(0, hm.rows[row]!.v.findIndex((v) => v !== null && v !== 0));
+  return { kind: 'history', ym, row, col };
+}
+
+/**
+ * Sueldos con lo escrito en la pestaña Meses (fila «SUELDO <nombre>», que lleva el
+ * sueldo del mes anterior):
+ * - meses de la hoja (años anteriores): una cifra cambiada a mano cuenta como cobrada;
+ * - año planificado: lo escrito cuenta como cobrado; si no, se estima con el importe
+ *   del concepto.
+ * Devuelve la persona con esos meses y desde qué mes se estima solo.
+ */
+export function withPlannedYear(data: AppData, input: SalaryPerson): { person: SalaryPerson; autoAfter: string | undefined } {
+  const person = withHistory(data, input);
   const idx = salaryItemIndex(data, person);
   const keys = Object.keys(person.months).sort();
   const autoAfter = keys[keys.length - 1];
@@ -159,13 +199,55 @@ export function withPlannedYear(data: AppData, person: SalaryPerson): { person: 
   const months = { ...person.months };
   const estimates = { ...(person.estimates ?? {}) };
   const { year } = data.config;
+  const inYear = (ym: string) => ym.startsWith(`${year}-`);
   for (let m = item.from_month; m <= item.to_month; m++) {
     const ym = monthKey(year, m);
+    const sal = prevYm(ym);
     const o = data.overrides[itemOverrideKey(ym, idx)];
-    delete months[ym];
-    delete estimates[ym];
-    if (typeof o === 'number') months[ym] = o;
-    else estimates[ym] = item.amount;
+    if (typeof o === 'number') {
+      months[sal] = o;
+      delete estimates[sal];
+    } else if (inYear(sal)) {
+      delete months[sal];
+      estimates[sal] = item.amount;
+    } else if (months[sal] === undefined && estimates[sal] === undefined) {
+      estimates[sal] = item.amount; // diciembre del año anterior, aún sin cobrar
+    }
   }
+  // El sueldo de diciembre irá en enero del año siguiente: mientras, estimado.
+  const dec = monthKey(year, 12);
+  if (item.to_month === 12 && months[dec] === undefined && estimates[dec] === undefined) estimates[dec] = item.amount;
   return { person: { ...person, months, estimates }, autoAfter };
+}
+
+/**
+ * Meses de años anteriores (los de la hoja, en Meses): si en la fila «Sueldo <nombre>»
+ * se escribió una cifra a mano, el mes anterior cuenta como cobrado con esa cifra (la
+ * suma de las columnas cambiadas). Lo que venía de la hoja sin tocar no cambia nada.
+ */
+export function withHistory(data: AppData, person: SalaryPerson): SalaryPerson {
+  const want = norm(`sueldo ${person.name}`);
+  let months: Record<string, number> | null = null;
+  let estimates: Record<string, number> | null = null;
+  for (const [ym, m] of Object.entries(data.history ?? {})) {
+    if (Number(ym.slice(0, 4)) >= data.config.year) continue;
+    const ri = m.rows.findIndex((r) => norm(r.l) === want);
+    if (ri < 0) continue;
+    let total = 0;
+    let edited = false;
+    m.cols.forEach((_, ci) => {
+      const o = data.overrides[historyCellKey(ym, ri, ci)];
+      if (typeof o === 'number' && Number.isFinite(o)) {
+        total += o;
+        edited = true;
+      }
+    });
+    if (!edited) continue;
+    months ??= { ...person.months };
+    estimates ??= { ...(person.estimates ?? {}) };
+    const sal = prevYm(ym);
+    months[sal] = round2(total);
+    delete estimates[sal];
+  }
+  return months ? { ...person, months, estimates: estimates ?? person.estimates } : person;
 }

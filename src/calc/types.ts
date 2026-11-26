@@ -73,6 +73,11 @@ export interface Config {
   debts?: Debt[];
   /** Nombre de las filas libres de cada mes: `"AAAA-MM_f<fila>"` → texto. */
   freeLabels?: Record<string, string>;
+  /**
+   * Filas libres de meses de la hoja (años anteriores) que puso una domiciliación:
+   * `"AAAA-MM_f<fila>"` → `"<link>@AAAA-MM-DD"` (enlace y fecha del cargo).
+   */
+  freeDom?: Record<string, string>;
   /** Sueldos de cada persona (pestaña Sueldos). */
   salaries?: SalaryPerson[];
   /** Compras y ventas de BTC (pestaña Sueldos). */

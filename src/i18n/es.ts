@@ -129,6 +129,7 @@ export const es = {
   'income.month.confirmed': 'Cobrado (confirmado)',
   'income.month.hint': 'Si no está cobrado todavía, se guarda como estimado.',
   'income.estimated.hint': 'Los meses que faltan salen como estimado: la media de lo cobrado con el contrato actual, o lo que pongas a mano.',
+  'income.nextMonth.hint': 'En Meses, el sueldo va en el mes siguiente, como en tu hoja: el de noviembre se apunta en diciembre.',
   'btc.title': 'Compras de BTC',
   'btc.add': 'Añadir operación',
   'btc.new': 'Nueva operación',

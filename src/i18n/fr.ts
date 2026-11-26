@@ -127,6 +127,7 @@ export const fr: Messages = {
   'income.month.confirmed': 'Touché (confirmé)',
   'income.month.hint': 'S’il n’est pas encore touché, il est enregistré comme estimation.',
   'income.estimated.hint': 'Les mois restants apparaissent comme estimations : la moyenne touchée avec le contrat actuel, ou ce que vous saisissez à la main.',
+  'income.nextMonth.hint': 'Dans Mois, le salaire va dans le mois suivant, comme dans ta feuille : celui de novembre se note en décembre.',
   'btc.title': 'Achats de BTC',
   'btc.add': 'Ajouter une opération',
   'btc.new': 'Nouvelle opération',

@@ -127,6 +127,7 @@ export const de: Messages = {
   'income.month.confirmed': 'Bezahlt (bestätigt)',
   'income.month.hint': 'Wenn es noch nicht bezahlt ist, wird es als Schätzung gespeichert.',
   'income.estimated.hint': 'Die fehlenden Monate erscheinen als Schätzung: der Durchschnitt mit dem aktuellen Vertrag oder was du von Hand einträgst.',
+  'income.nextMonth.hint': 'Unter Monate steht das Gehalt im Folgemonat, wie in deiner Tabelle: das Novembergehalt trägst du im Dezember ein.',
   'btc.title': 'BTC-Käufe',
   'btc.add': 'Vorgang hinzufügen',
   'btc.new': 'Neuer Vorgang',

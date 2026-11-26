@@ -127,6 +127,7 @@ export const pl: Messages = {
   'income.month.confirmed': 'Wypłacona (potwierdzona)',
   'income.month.hint': 'Jeśli jeszcze nie wpłynęła, zostanie zapisana jako szacunek.',
   'income.estimated.hint': 'Brakujące miesiące pojawiają się jako szacunek: średnia z obecnej umowy albo kwota wpisana ręcznie.',
+  'income.nextMonth.hint': 'W Miesiącach pensja trafia do następnego miesiąca, jak w twoim arkuszu: listopadową wpisujesz w grudniu.',
   'btc.title': 'Zakupy BTC',
   'btc.add': 'Dodaj transakcję',
   'btc.new': 'Nowa transakcja',

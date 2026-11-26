@@ -171,6 +171,12 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && label) freeLabels[k] = label;
     }
   }
+  const freeDom: Record<string, string> = {};
+  if (isObj(cfg['freeDom'])) {
+    for (const [k, v] of Object.entries(cfg['freeDom']).slice(0, 2000)) {
+      if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && typeof v === 'string' && /^[\w-]{1,60}@\d{4}-\d{2}-\d{2}$/.test(v)) freeDom[k] = v;
+    }
+  }
   const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);
   const accountOrder = arr(cfg['accountOrder']).filter((x): x is number => Number.isInteger(x) && (x as number) >= 0 && (x as number) < accounts.length);
   const orderOk = accountOrder.length > 0 && new Set(accountOrder).size === accountOrder.length;
@@ -188,6 +194,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       ...(sections.length ? { sections } : {}),
       ...(debts.length ? { debts } : {}),
       ...(Object.keys(freeLabels).length ? { freeLabels } : {}),
+      ...(Object.keys(freeDom).length ? { freeDom } : {}),
       ...(freeRowsBefore ? { freeRowsBefore } : {}),
       ...(orderOk ? { accountOrder } : {}),
       ...(rowOrder.length ? { rowOrder } : {}),

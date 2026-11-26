@@ -6,10 +6,15 @@
  * un pago en cada fecha de cargo, en el mismo bloque que los demás pagos (p. ej.
  * «Pagos de este mes · salen del bote»). Todo queda enlazado con `link`, así que
  * al cambiar o borrar la domiciliación se cambian o se quitan sus cargos.
+ *
+ * Los cargos que caen en meses de años anteriores (los de la hoja, que no tienen
+ * conceptos ni pagos) van a una fila libre de ese mes, en la columna de la cuenta.
  */
+import { norm } from './debts';
+import { FREE_ROWS, freeCellKey, freeLabelKey, setFreeCell, setFreeLabel } from './extras';
 import { daysInMonth, parseDate } from './keys';
 import { round2 } from './money';
-import { addItem, addPayment, defaultPaymentGroup, removeItem, removePayment, updateItem } from './mutations';
+import { addItem, addPayment, defaultPaymentGroup, mostUsedGroup, removeItem, removePayment, updateItem } from './mutations';
 import type { AppData, Config, DomPlan, DomRow, ItemType } from './types';
 
 export const EVERY_OPTIONS = [1, 2, 3, 6, 12] as const;
@@ -39,24 +44,56 @@ export function chargeLabel(date: string, first: string, every: number): string 
   return ` ${Math.floor((m - 1 - start) / every) + 1}/${Math.round(12 / every)}`;
 }
 
-/** Bloque propio que más usan los conceptos de ese tipo, o '' (el bloque normal). */
-export function defaultItemGroup(config: Config, type: ItemType): string {
-  const sections = config.sections ?? [];
-  const count = new Map<string, number>();
-  for (const it of config.items) {
-    if (it.type !== type) continue;
-    const g = it.group && sections.includes(it.group) ? it.group : '';
-    count.set(g, (count.get(g) ?? 0) + 1);
-  }
-  let best = '';
-  let max = 0;
-  for (const [g, n] of count) if (g && n > max) [best, max] = [g, n];
-  return max >= (count.get('') ?? 0) ? best : '';
+/** Bloque propio que más usan los conceptos de ese tipo (de esa cuenta, si la hay), o ''. */
+export function defaultItemGroup(config: Config, type: ItemType, account?: number): string {
+  return mostUsedGroup(config.sections ?? [], config.items.filter((it) => it.type === type), account);
 }
 
 /** Bloque de la tabla del mes donde irán los cargos (para enseñarlo en el formulario). */
-export function planGroup(config: Config, every: number): string {
-  return every === 1 ? defaultItemGroup(config, 'Gasto') : defaultPaymentGroup(config);
+export function planGroup(config: Config, every: number, account?: number): string {
+  return every === 1 ? defaultItemGroup(config, 'Gasto', account) : defaultPaymentGroup(config, account);
+}
+
+/** Filas libres de meses de la hoja que puso esta domiciliación: clave de la fila y fecha del cargo. */
+export function planFreeRows(data: AppData, link: string): { key: string; ym: string; slot: number; date: string }[] {
+  return Object.entries(data.config.freeDom ?? {}).flatMap(([key, v]) => {
+    const at = v.lastIndexOf('@');
+    if (v.slice(0, at) !== link) return [];
+    const m = /^(\d{4}-\d{2})_f(\d)$/.exec(key);
+    return m ? [{ key, ym: m[1]!, slot: Number(m[2]), date: v.slice(at + 1) }] : [];
+  });
+}
+
+/** Quita una fila libre entera (nombre, importes y enlace). */
+function clearFreeRow(data: AppData, ym: string, slot: number): AppData {
+  let next = setFreeLabel(data, ym, slot, '');
+  const cols = data.history?.[ym]?.cols.length ?? data.config.accounts.length;
+  for (let c = 0; c < cols; c++) next = setFreeCell(next, ym, slot, c, null);
+  const freeDom = { ...(next.config.freeDom ?? {}) };
+  delete freeDom[freeLabelKey(ym, slot)];
+  return { ...next, config: { ...next.config, freeDom } };
+}
+
+/**
+ * Cargo en un mes de la hoja: en una fila libre vacía, en la columna de la cuenta.
+ * Si ese cargo ya está, o no hay fila libre o columna, no se hace nada.
+ */
+function addHistoryCharge(data: AppData, link: string, date: string, concept: string, value: number, account: number): AppData {
+  const ym = date.slice(0, 7);
+  const hm = data.history?.[ym];
+  const name = data.config.accounts[account]?.name;
+  if (!hm || !name) return data;
+  if (planFreeRows(data, link).some((r) => r.ym === ym)) return data;
+  const col = hm.cols.findIndex((c) => norm(c) === norm(name));
+  if (col < 0) return data;
+  const labels = data.config.freeLabels ?? {};
+  const slot = Array.from({ length: FREE_ROWS }, (_, s) => s).find(
+    (s) => !labels[freeLabelKey(ym, s)] && hm.cols.every((_, c) => data.overrides[freeCellKey(ym, s, c)] === undefined),
+  );
+  if (slot === undefined) return data;
+  let next = setFreeLabel(data, ym, slot, concept);
+  next = setFreeCell(next, ym, slot, col, -value);
+  return { ...next, config: { ...next.config, freeDom: { ...(next.config.freeDom ?? {}), [freeLabelKey(ym, slot)]: `${link}@${date}` } } };
 }
 
 /**
@@ -65,6 +102,7 @@ export function planGroup(config: Config, every: number): string {
  */
 export function removePlanCharges(data: AppData, link: string, fromDate: string): AppData {
   let next = data;
+  for (const r of planFreeRows(next, link)) if (r.date >= fromDate) next = clearFreeRow(next, r.ym, r.slot);
   for (let i = next.config.payments.length - 1; i >= 0; i--) {
     const p = next.config.payments[i]!;
     if (p.dom === link && p.date >= fromDate) next = removePayment(next, i);
@@ -87,11 +125,16 @@ export function addPlanCharges(data: AppData, plan: DomPlan, concept: string, am
   const value = round2(Math.abs(amount));
   if (!value) return data;
   const year = data.config.year;
+  // Meses de la hoja (años anteriores): los cargos desde el primero que aún no estén.
+  let next = data;
+  for (const date of planDates(plan.first, plan.every, year - 1)) {
+    next = addHistoryCharge(next, plan.link, date, plan.every === 1 ? concept : concept + chargeLabel(date, plan.first, plan.every), value, account);
+  }
   if (plan.every === 1) {
     const begin = parseDate(plan.first > fromDate ? plan.first : fromDate);
-    if (!begin || begin.year > year) return data;
-    const group = defaultItemGroup(data.config, 'Gasto');
-    return addItem(data, {
+    if (!begin || begin.year > year) return next;
+    const group = defaultItemGroup(next.config, 'Gasto', account);
+    return addItem(next, {
       name: concept,
       type: 'Gasto',
       amount: value,
@@ -104,10 +147,9 @@ export function addPlanCharges(data: AppData, plan: DomPlan, concept: string, am
     });
   }
   const until = Math.max(year, parseDate(plan.first)?.year ?? year) + 1;
-  const group = defaultPaymentGroup(data.config);
-  let next = data;
+  const group = defaultPaymentGroup(next.config, account);
   for (const date of planDates(plan.first, plan.every, until)) {
-    if (date < fromDate) continue;
+    if (date < fromDate || Number(date.slice(0, 4)) < year) continue;
     next = addPayment(next, {
       date,
       concept: concept + chargeLabel(date, plan.first, plan.every),
@@ -122,10 +164,11 @@ export function addPlanCharges(data: AppData, plan: DomPlan, concept: string, am
 }
 
 /** Lo que una domiciliación tiene en la tabla del mes desde `fromDate`, para enseñarlo antes de borrar. */
-export function planCharges(data: AppData, row: DomRow, fromDate: string): { payments: number[]; items: number[] } {
+export function planCharges(data: AppData, row: DomRow, fromDate: string): { payments: number[]; items: number[]; free?: string[] } {
   const link = row.plan?.link;
   if (link) {
     return {
+      free: planFreeRows(data, link).flatMap((r) => (r.date >= fromDate ? [r.date] : [])),
       payments: data.config.payments.flatMap((p, i) => (p.dom === link && p.date >= fromDate ? [i] : [])),
       items: data.config.items.flatMap((it, i) => (it.dom === link ? [i] : [])),
     };

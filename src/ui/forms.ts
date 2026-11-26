@@ -466,13 +466,14 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
     first.el.hidden = n === 0;
     account.el.hidden = n === 0 || config.accounts.length < 2;
     replace.el.hidden = n === 0 || oldNames.length === 0;
-    const g = planGroup(config, n);
+    const g = planGroup(config, n, Number(account.select.value));
     const block = g || t(n === 1 ? 'months.group.Gasto' : 'months.group.Pago');
     const date = first.el.querySelector('input')?.value ?? '';
     summary.textContent =
       n === 0 ? t('dom.plan.none') : n === 1 ? t('dom.plan.month', { block }) : t('dom.plan.pay', { n: Math.round(12 / n), block, date: date ? fmtDate(date, { year: true }) : '—' });
   };
   every.select.addEventListener('change', sync);
+  account.select.addEventListener('change', sync);
   first.el.addEventListener('change', sync);
   first.el.addEventListener('input', sync);
   sync();
@@ -483,7 +484,11 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
       deleteAction(async () => {
         // Al borrarla se ofrece quitar también sus cargos de la tabla del mes, desde hoy.
         const found = planCharges(ctx.data, current, today);
-        const names = [...found.payments.map((i) => `${config.payments[i]!.concept} (${fmtDate(config.payments[i]!.date, { year: true })})`), ...found.items.map((i) => config.items[i]!.name)];
+        const names = [
+          ...(found.free ?? []).map((d) => `${current.c} (${fmtDate(d, { year: true })})`),
+          ...found.payments.map((i) => `${config.payments[i]!.concept} (${fmtDate(config.payments[i]!.date, { year: true })})`),
+          ...found.items.map((i) => config.items[i]!.name),
+        ];
         const also = checkboxField({ label: t('dom.delete.charges', { list: names.slice(0, 8).join(', ') + (names.length > 8 ? '…' : '') }), checked: true });
         const yes = await confirmDialog({ text: [h('p', null, t('dom.delete', { name: current.c })), names.length ? also.el : null], yes: t('action.delete'), danger: true });
         if (!yes) return;
@@ -509,8 +514,8 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
         }
         const nextPlan: DomPlan | undefined = n ? { link: plan?.link ?? newId(), every: n, first: v.first, account: v.account } : undefined;
         let data = ctx.data;
-        const changed =
-          !plan || !nextPlan || plan.every !== nextPlan.every || plan.first !== nextPlan.first || plan.account !== nextPlan.account || current?.cost !== v.cost || current?.c !== v.concept;
+        // Con cargos, guardar siempre los rehace (así se corrigen bloque y meses que faltaban).
+        const changed = !!nextPlan || !!plan;
         if (changed) {
           // Los cargos ya pasados se quedan; los de hoy en adelante se vuelven a crear con lo nuevo.
           if (plan) data = removePlanCharges(data, plan.link, today);

@@ -64,7 +64,7 @@ function personBody(ctx: Ctx, pi: number): HTMLElement[] {
 
   if (years.length === 0) return [h('div', { class: 'button-row page-actions' }, add), card({}, empty(t('income.empty'))), contractsCard];
 
-  return [h('div', { class: 'button-row page-actions' }, add), ...years.map((y) => yearCard(ctx, pi, person, y)), contractsCard, h('p', { class: 'field-hint' }, t('income.estimated.hint'))];
+  return [h('div', { class: 'button-row page-actions' }, add), ...years.map((y) => yearCard(ctx, pi, person, y)), contractsCard, h('p', { class: 'field-hint' }, t('income.nextMonth.hint')), h('p', { class: 'field-hint' }, t('income.estimated.hint'))];
 }
 
 function yearCard(ctx: Ctx, pi: number, person: SalaryPerson, y: ReturnType<typeof salaryYears>[number]): HTMLElement {

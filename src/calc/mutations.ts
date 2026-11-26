@@ -211,11 +211,22 @@ export function normalizePayment(p: Payment): Payment {
  * Bloque de la tabla del mes donde van los pagos nuevos: el bloque propio
  * (`config.sections`) que más usan los pagos que ya hay, o '' («Pagos no mensuales»).
  */
-export function defaultPaymentGroup(config: Config): string {
-  const sections = config.sections ?? [];
+export function defaultPaymentGroup(config: Config, account?: number): string {
+  return mostUsedGroup(config.sections ?? [], config.payments, account);
+}
+
+/**
+ * Bloque propio más usado entre `rows`, o '' (el bloque normal). Con `account`,
+ * primero se mira solo lo de esa cuenta (los pagos de BANKIA van con los de BANKIA).
+ */
+export function mostUsedGroup(sections: readonly string[], rows: readonly { group?: string; account: number }[], account?: number): string {
+  if (account !== undefined) {
+    const own = rows.filter((r) => r.account === account && r.group && sections.includes(r.group));
+    if (own.length) return mostUsedGroup(sections, own);
+  }
   const count = new Map<string, number>();
-  for (const p of config.payments) {
-    const g = p.group && sections.includes(p.group) ? p.group : '';
+  for (const r of rows) {
+    const g = r.group && sections.includes(r.group) ? r.group : '';
     count.set(g, (count.get(g) ?? 0) + 1);
   }
   let best = '';

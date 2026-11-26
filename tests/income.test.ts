@@ -79,22 +79,42 @@ describe('anexo y copia', () => {
   });
 });
 
-describe('sueldos del año planificado desde la pestaña Meses', () => {
-  it('lo escrito en Meses es cobrado; el resto, estimado con el importe del concepto', async () => {
+describe('sueldos desde la pestaña Meses (el sueldo va en el mes siguiente, como en la hoja)', () => {
+  it('año planificado: lo de enero es el sueldo de diciembre; el resto, estimado con el concepto', async () => {
     const { blankData, withPlannedYear, salaryYears: years } = await import('../src/calc');
     const base = blankData(2027, 'Banco');
     const data = {
       ...base,
       config: { ...base.config, items: [{ name: 'SUELDO PERSONA', type: 'Ingreso' as const, amount: 3000, account: 0, to: -1, from_month: 1, to_month: 12 }] },
-      overrides: { '2027-01_i0': 3123.45 },
+      overrides: { '2027-01_i0': 3123.45, '2027-02_i0': 3050 },
     };
     const p = { name: 'Persona', contracts: [], months: { '2026-11': 2900 } };
     const { person, autoAfter } = withPlannedYear(data, p);
     const y = years(person, 2027, autoAfter);
+    expect(y.find((x) => x.year === 2026)!.rows.find((r) => r.ym === '2026-12')).toMatchObject({ amount: 3123.45, estimated: false });
     const y27 = y.find((x) => x.year === 2027)!;
-    expect(y27.rows[0]).toMatchObject({ ym: '2027-01', amount: 3123.45, estimated: false });
+    expect(y27.rows[0]).toMatchObject({ ym: '2027-01', amount: 3050, estimated: false });
     expect(y27.rows[1]).toMatchObject({ ym: '2027-02', amount: 3000, estimated: true });
-    // Diciembre de 2026 sigue saliendo como estimado aunque enero de 2027 ya esté cobrado.
-    expect(y.find((x) => x.year === 2026)!.rows.map((r) => r.ym)).toEqual(['2026-11', '2026-12']);
+    expect(y27.rows[11]).toMatchObject({ ym: '2027-12', amount: 3000, estimated: true });
+  });
+
+  it('meses de la hoja: la cifra cambiada a mano en diciembre es el sueldo cobrado de noviembre', async () => {
+    const { blankData, withPlannedYear, salaryYears: years, salaryCell } = await import('../src/calc');
+    const base = blankData(2027, 'Banco');
+    const data = {
+      ...base,
+      history: {
+        '2026-12': { title: 'Diciembre 2026', cols: ['ING.GIRO', 'VB'], rows: [{ l: 'Sueldo Ana', v: [1550, null] }], tot: [1550, null] },
+      },
+      overrides: { '2026-12_r0_c0': 1498.21 },
+    };
+    const p = { name: 'Ana', contracts: [], months: { '2026-10': 1548.21 } };
+    expect(salaryCell(data, p, '2026-11')).toEqual({ kind: 'history', ym: '2026-12', row: 0, col: 0 });
+    const { person, autoAfter } = withPlannedYear(data, p);
+    const y26 = years(person, 2027, autoAfter).find((x) => x.year === 2026)!;
+    expect(y26.rows.find((r) => r.ym === '2026-11')).toMatchObject({ amount: 1498.21, estimated: false });
+    // Sin tocar la cifra de la hoja, noviembre sigue estimado.
+    const { person: p2, autoAfter: a2 } = withPlannedYear({ ...data, overrides: {} }, p);
+    expect(years(p2, 2027, a2).find((x) => x.year === 2026)!.rows.find((r) => r.ym === '2026-11')!.estimated).toBe(true);
   });
 });

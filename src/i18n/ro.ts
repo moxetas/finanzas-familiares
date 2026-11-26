@@ -127,6 +127,7 @@ export const ro: Messages = {
   'income.month.confirmed': 'Încasat (confirmat)',
   'income.month.hint': 'Dacă nu e încasat încă, se salvează ca estimare.',
   'income.estimated.hint': 'Lunile rămase apar ca estimare: media încasată cu contractul actual sau ce introduci de mână.',
+  'income.nextMonth.hint': 'În Luni, salariul merge în luna următoare, ca în foaia ta: cel din noiembrie se trece în decembrie.',
   'btc.title': 'Cumpărături de BTC',
   'btc.add': 'Adaugă tranzacție',
   'btc.new': 'Tranzacție nouă',

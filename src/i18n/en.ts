@@ -127,6 +127,7 @@ export const en: Messages = {
   'income.month.confirmed': 'Paid (confirmed)',
   'income.month.hint': 'If it has not been paid yet, it is saved as an estimate.',
   'income.estimated.hint': 'The remaining months appear as estimates: the average paid under the current contract, or whatever you enter by hand.',
+  'income.nextMonth.hint': 'In Months, the salary goes in the following month, as in your sheet: November’s is entered in December.',
   'btc.title': 'BTC purchases',
   'btc.add': 'Add transaction',
   'btc.new': 'New transaction',
