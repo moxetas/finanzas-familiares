@@ -406,35 +406,26 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
 
   const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes, order };
   let freePlaced = false;
-  // Cada bloque se ordena por separado, con el orden elegido con «Ordenar». Los apuntes no se mueven.
+  // Una sola lista, sin bloques: cada fila se puede mover a cualquier sitio con
+  // «Ordenar» (el color ya dice si entra o sale). Sin orden guardado, salen
+  // como antes: por bloques propios y luego ingresos, gastos, pagos y ahorro.
+  // Los apuntes no se mueven.
   const shown = new Map<string, string[]>();
-  const sectionRows = (label: string, unsorted: Line[]) => {
-    if (unsorted.length === 0) return;
-    const group = `s${shown.size}`;
-    const keys = rowKeys(unsorted.map((l) => (l.kind === 'entry' ? null : l.name)));
-    const positions = sortedPositions(keys, ctx.data.config.rowOrder);
-    const lines = positions.map((i) => unsorted[i]!);
-    const lineKeys = positions.map((i) => keys[i]!);
-    shown.set(group, lineKeys.filter((k): k is string => k !== null));
-    rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, label)));
-    lines.forEach((line, li) => {
-      if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
-        rows.push(...freeRows(ctx, m.extras, extraOpts));
-        freePlaced = true;
-      }
-      rows.push(lineRow(ctx, line, month, order, several, hasNotes, lineKeys[li] === null ? undefined : group));
-    });
-  };
-
   const sections = ctx.data.config.sections ?? [];
-  for (const name of sections) sectionRows(name, m.lines.filter((l) => l.group === name));
   const rest = m.lines.filter((l) => !sections.includes(l.group));
-  for (const group of GROUPS) {
-    sectionRows(
-      t(group.label),
-      rest.filter((l) => groupOf(l) === group.type),
-    );
-  }
+  const base = [...sections.flatMap((name) => m.lines.filter((l) => l.group === name)), ...GROUPS.flatMap((g) => rest.filter((l) => groupOf(l) === g.type))];
+  const keys = rowKeys(base.map((l) => (l.kind === 'entry' ? null : l.name)));
+  const positions = sortedPositions(keys, ctx.data.config.rowOrder);
+  const lineKeys = positions.map((i) => keys[i]!);
+  shown.set('all', lineKeys.filter((k): k is string => k !== null));
+  positions.forEach((i, li) => {
+    const line = base[i]!;
+    if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
+      rows.push(...freeRows(ctx, m.extras, extraOpts));
+      freePlaced = true;
+    }
+    rows.push(lineRow(ctx, line, month, order, several, hasNotes, lineKeys[li] === null ? undefined : 'all'));
+  });
 
   if (m.lines.length === 0) {
     rows.push(h('tr', null, h('td', { colspan: span, class: 'empty-cell' }, t('months.empty'))));
