@@ -141,8 +141,39 @@ export function btcRows(trades: readonly BtcTrade[]): BtcRow[] {
 
 /** Concepto del año planificado con el sueldo de esta persona («SUELDO ALBERTO»), o -1. */
 export function salaryItemIndex(data: AppData, person: SalaryPerson): number {
-  const want = norm(`sueldo ${person.name}`);
-  return data.config.items.findIndex((it) => it.type === 'Ingreso' && norm(it.name) === want);
+  const who = norm(person.name);
+  return data.config.items.findIndex((it) => it.type === 'Ingreso' && salaryName(it.name) !== null && norm(salaryName(it.name)!) === who);
+}
+
+/** Palabras con las que empieza el concepto de un sueldo en Meses («SUELDO ALBERTO», «Nómina Ana»). */
+const SALARY_WORDS = ['sueldo', 'nomina', 'salario'];
+
+/** Nombre de la persona de un concepto de sueldo («SUELDO ALBERTO» → «ALBERTO»), o null si no lo es. */
+export function salaryName(concept: string): string | null {
+  const words = concept.trim().split(/\s+/);
+  if (words.length < 2 || !SALARY_WORDS.includes(norm(words[0]!))) return null;
+  return words.slice(1).join(' ');
+}
+
+/** «ALBERTO» → «Alberto», «ana maría» → «Ana María». */
+const niceName = (s: string) => s.toLocaleLowerCase().replace(/(^|[\s-])(\p{L})/gu, (_, a: string, b: string) => a + b.toLocaleUpperCase());
+
+/**
+ * Cada concepto de sueldo de Meses («SUELDO ALBERTO») tiene su persona en la
+ * pestaña Sueldos: si aún no existe, se crea. Así lo escrito en Meses sale solo
+ * en Sueldos, sin tener que añadir a la persona a mano.
+ */
+export function ensureSalaryPeople(data: AppData): AppData {
+  const people = data.config.salaries ?? [];
+  const have = new Set(people.map((p) => norm(p.name)));
+  const added: SalaryPerson[] = [];
+  for (const it of data.config.items) {
+    const name = it.type === 'Ingreso' ? salaryName(it.name) : null;
+    if (!name || have.has(norm(name))) continue;
+    have.add(norm(name));
+    added.push({ name: niceName(name), contracts: [], months: {} });
+  }
+  return added.length ? { ...data, config: { ...data.config, salaries: [...people, ...added] } } : data;
 }
 
 /** Mes siguiente y anterior a «AAAA-MM». */
@@ -175,7 +206,7 @@ export function salaryCell(data: AppData, person: SalaryPerson, salaryYm: string
   }
   const hm = year < data.config.year ? data.history?.[ym] : undefined;
   if (!hm) return null;
-  const row = hm.rows.findIndex((r) => norm(r.l) === norm(`sueldo ${person.name}`));
+  const row = hm.rows.findIndex((r) => salaryName(r.l) !== null && norm(salaryName(r.l)!) === norm(person.name));
   if (row < 0) return null;
   const col = Math.max(0, hm.rows[row]!.v.findIndex((v) => v !== null && v !== 0));
   return { kind: 'history', ym, row, col };
@@ -226,12 +257,12 @@ export function withPlannedYear(data: AppData, input: SalaryPerson): { person: S
  * suma de las columnas cambiadas). Lo que venía de la hoja sin tocar no cambia nada.
  */
 export function withHistory(data: AppData, person: SalaryPerson): SalaryPerson {
-  const want = norm(`sueldo ${person.name}`);
+  const want = norm(person.name);
   let months: Record<string, number> | null = null;
   let estimates: Record<string, number> | null = null;
   for (const [ym, m] of Object.entries(data.history ?? {})) {
     if (Number(ym.slice(0, 4)) >= data.config.year) continue;
-    const ri = m.rows.findIndex((r) => norm(r.l) === want);
+    const ri = m.rows.findIndex((r) => salaryName(r.l) !== null && norm(salaryName(r.l)!) === want);
     if (ri < 0) continue;
     let total = 0;
     let edited = false;

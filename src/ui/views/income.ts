@@ -1,6 +1,6 @@
 /** Pestaña Sueldos: sueldos de cada persona con su media, y compras de BTC. */
 
-import { btcRows, contractSummary, salaryYears, withPlannedYear } from '../../calc/income';
+import { btcRows, contractSummary, ensureSalaryPeople, salaryYears, withPlannedYear } from '../../calc/income';
 import type { SalaryPerson } from '../../calc/types';
 import { fmtDate, fmtMoney, fmtNumber, fmtYearMonth, localeTag, monthName, t } from '../../i18n';
 import { button, card, chip, empty, kpi, money, pageHeader } from '../components';
@@ -11,7 +11,10 @@ import { addPerson, editBtc, editContract, editSalary } from '../income-forms';
 const qtyFmt = () => new Intl.NumberFormat(localeTag(), { minimumFractionDigits: 6, maximumFractionDigits: 8 });
 
 export function incomeView(ctx: Ctx, param: string | undefined): HTMLElement {
-  const people = ctx.data.config.salaries ?? [];
+  // Datos de antes: si hay un concepto de sueldo sin su persona, se crea ahora.
+  const ensured = ensureSalaryPeople(ctx.data);
+  if (ensured !== ctx.data) queueMicrotask(() => ctx.store.setData(ensureSalaryPeople(ctx.data)));
+  const people = ensured.config.salaries ?? [];
   const tabs = [...people.map((p, i) => ({ id: String(i), label: p.name })), { id: 'btc', label: t('income.btc') }];
   const current = tabs.some((x) => x.id === param) ? param! : (tabs[0]?.id ?? 'btc');
   const switcher = h(
@@ -27,7 +30,7 @@ export function incomeView(ctx: Ctx, param: string | undefined): HTMLElement {
 }
 
 function personBody(ctx: Ctx, pi: number): HTMLElement[] {
-  const stored = ctx.data.config.salaries![pi]!;
+  const stored = ensureSalaryPeople(ctx.data).config.salaries![pi]!;
   // El año planificado se toma de la pestaña Meses (concepto «SUELDO <nombre>»).
   const { person, autoAfter } = withPlannedYear(ctx.data, stored);
   const until = Math.max(new Date().getFullYear(), ctx.data.config.year);

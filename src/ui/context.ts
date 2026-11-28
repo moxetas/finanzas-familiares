@@ -1,3 +1,4 @@
+import { ensureSalaryPeople } from '../calc/income';
 import type { AppData } from '../calc/types';
 import { t } from '../i18n';
 import type { Store } from './store';
@@ -20,7 +21,8 @@ export function createCtx(store: Store, go: (hash: string) => void): Ctx {
     },
     commit(next, undo) {
       const prev = store.state.data;
-      store.setData(next);
+      // Un concepto de sueldo nuevo en Meses crea a su persona en Sueldos.
+      store.setData(ensureSalaryPeople(next));
       if (undo) toast(undo, { action: { label: t('action.undo'), onClick: () => store.setData(prev) } });
     },
     go,

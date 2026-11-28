@@ -6,6 +6,7 @@ import { CARD_SLOT0, setFreeCell, setFreeLabel, setTransferCell } from '../calc/
 import { accountOrder, inOrder } from '../calc/order';
 import { parseAmount } from '../calc/money';
 import { norm } from '../calc/debts';
+import { salaryName } from '../calc/income';
 import {
   removeDomRow,
   saveDomRow,
@@ -377,7 +378,7 @@ export function editOverride(ctx: Ctx, line: Line, month: number): void {
         const r = { value: dir * r0.value };
         // Si vuelve a ser el importe normal, no hace falta guardar el cambio. Salvo en un
         // sueldo: lo escrito a mano es lo cobrado (y así sale como confirmado en Sueldos).
-        const keep = line.kind === 'item' && line.type === 'Ingreso' && /^sueldo /i.test(line.name.trim());
+        const keep = line.kind === 'item' && line.type === 'Ingreso' && salaryName(line.name) !== null;
         apply(r.value === line.base && !keep ? null : r.value);
         if (r.value !== line.base || keep) toast(t('override.saved', { month: fmtYearMonth(ym) }));
       },

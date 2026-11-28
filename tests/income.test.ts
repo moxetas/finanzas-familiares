@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoEstimate, btcRows, contractSummary, salaryYears, type SalaryPerson } from '../src/calc';
+import { autoEstimate, btcRows, contractSummary, ensureSalaryPeople, salaryYears, withPlannedYear, type AppData, type SalaryPerson } from '../src/calc';
 import { sanitizeData } from '../src/storage/sanitize';
 import { parseAnnex } from '../src/storage/backup';
 import { parseQty } from '../src/ui/income-forms';
@@ -116,5 +116,36 @@ describe('sueldos desde la pestaña Meses (el sueldo va en el mes siguiente, com
     // Sin tocar la cifra de la hoja, noviembre sigue estimado.
     const { person: p2, autoAfter: a2 } = withPlannedYear({ ...data, overrides: {} }, p);
     expect(years(p2, 2027, a2).find((x) => x.year === 2026)!.rows.find((r) => r.ym === '2026-11')!.estimated).toBe(true);
+  });
+});
+
+describe('personas de Sueldos desde los conceptos de Meses', () => {
+  const withItems = (names: string[], salaries?: { name: string }[]): AppData => ({
+    config: {
+      year: 2027,
+      example: false,
+      accounts: [{ name: 'ING', initial: 0 }],
+      items: names.map((name) => ({ name, type: 'Ingreso' as const, amount: 3000, account: 0, to: -1, from_month: 1, to_month: 12 })),
+      payments: [],
+      ...(salaries ? { salaries: salaries.map((s) => ({ ...s, contracts: [], months: {} })) } : {}),
+    },
+    overrides: {},
+    real_balances: {},
+    entries: [],
+  });
+
+  it('crea a cada persona con concepto de sueldo, sin repetir las que ya hay', () => {
+    const d = ensureSalaryPeople(withItems(['SUELDO ALBERTO', 'Nómina Ana', 'KINDERGELD'], [{ name: 'alberto' }]));
+    expect(d.config.salaries!.map((p) => p.name)).toEqual(['alberto', 'Ana']);
+    const same = ensureSalaryPeople(d);
+    expect(same).toBe(d);
+  });
+
+  it('lo escrito en Meses sale en Sueldos de esa persona', () => {
+    let d = ensureSalaryPeople(withItems(['SUELDO ALBERTO']));
+    d = { ...d, overrides: { '2027-02_i0': 3210.5 } };
+    const { person } = withPlannedYear(d, d.config.salaries![0]!);
+    expect(person.name).toBe('Alberto');
+    expect(person.months['2027-01']).toBe(3210.5);
   });
 });
