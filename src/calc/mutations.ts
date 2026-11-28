@@ -48,16 +48,23 @@ function shiftKeys(dict: Record<string, number>, kind: string, removed: number):
 
 export function addAccount(data: AppData, account: Account): AppData {
   const next = cloneData(data);
-  next.config.accounts.push({ name: account.name, initial: round2(account.initial) });
+  next.config.accounts.push({ name: account.name, initial: round2(account.initial), ...(account.reserve ? { reserve: round2(account.reserve) } : {}) });
   return next;
 }
 
 export function updateAccount(data: AppData, index: number, account: Account): AppData {
   if (!data.config.accounts[index]) return data;
   const next = cloneData(data);
-  const { spent: _old, ...rest } = data.config.accounts[index]!;
+  const { spent: _old, reserve: oldReserve, ...rest } = data.config.accounts[index]!;
   void _old;
-  next.config.accounts[index] = { ...rest, name: account.name, initial: round2(account.initial), ...(account.spent ? { spent: true } : {}) };
+  const reserve = account.reserve === undefined ? oldReserve : account.reserve;
+  next.config.accounts[index] = {
+    ...rest,
+    name: account.name,
+    initial: round2(account.initial),
+    ...(account.spent ? { spent: true } : {}),
+    ...(reserve ? { reserve: round2(reserve) } : {}),
+  };
   return next;
 }
 
@@ -158,8 +165,10 @@ export function normalizeItem(item: Item): Item {
   let from = Math.min(12, Math.max(1, Math.trunc(item.from_month) || 1));
   let to = Math.min(12, Math.max(1, Math.trunc(item.to_month) || 12));
   if (from > to) [from, to] = [to, from];
+  const { reserve, ...rest } = item;
   return {
-    ...item,
+    ...rest,
+    ...(reserve ? { reserve: true } : {}),
     name: item.name,
     type: item.type,
     amount: round2(Math.abs(item.amount)),

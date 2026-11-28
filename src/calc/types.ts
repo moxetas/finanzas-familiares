@@ -15,6 +15,12 @@ export interface Account {
   initial: number;
   /** Cuenta «de gasto diario»: lo que entra se gasta, no se guarda saldo. */
   spent?: boolean;
+  /**
+   * Fila «Deuda / Ahorro» de la tabla del mes: lo que había al empezar el año
+   * (negativo, una deuda; positivo, un ahorro aparte, p. ej. un Bausparvertrag).
+   * No es saldo de la cuenta. Ver `Item.reserve`.
+   */
+  reserve?: number;
 }
 
 export interface Item {
@@ -38,6 +44,13 @@ export interface Item {
   group?: string;
   /** Domiciliación que lo creó (`DomRow.link`). */
   dom?: string;
+  /**
+   * Va a la fila «Deuda / Ahorro» de la cuenta, no a su saldo:
+   * - Ingreso: entra en esa fila (p. ej. lo que paga la empresa al Bausparvertrag).
+   * - Ahorro: sale del saldo de la cuenta de origen y entra en la fila de la de destino.
+   * - Gasto: sale del saldo y baja la deuda (p. ej. lo que se paga de la tarjeta).
+   */
+  reserve?: boolean;
 }
 
 export interface Payment {

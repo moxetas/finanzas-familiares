@@ -10,7 +10,7 @@ import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, typ
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
 import { h, uid } from '../dom';
-import { editDebt, editEntry, editHistoryCell, editOverride, editStart } from '../forms';
+import { editDebt, editEntry, editHistoryCell, editOverride, editReserveStart, editStart } from '../forms';
 import { icon } from '../icons';
 import { signButtons } from '../fields';
 import { openImport } from '../import-ai';
@@ -238,6 +238,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     totalClosing: 0,
     debts: [],
     extras,
+    reserve: ctx.data.config.accounts.map(() => 0),
   };
   return h(
     'div',
@@ -339,6 +340,35 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     h('td', { class: `n${opts.strong ? ' strong' : ''}${opts.muted ? ' muted' : ''}` }, money(value, { plain: true }));
 
   const rows: HTMLElement[] = [];
+
+  // Deuda / Ahorro: aparte del saldo (deuda de la tarjeta, Bausparvertrag…). Lo que hay a fin de mes.
+  rows.push(
+    h(
+      'tr',
+      { class: 'row-sum row-reserve' },
+      h('th', { scope: 'row' }, t('reserve.row')),
+      inOrder(accounts, order).map(({ item: a, index: c }) => {
+        const v = m.reserve[c] ?? 0;
+        return h(
+          'td',
+          { class: 'n' },
+          h(
+            'button',
+            {
+              type: 'button',
+              class: `cell-btn${v < 0 ? ' neg' : ''}${v === 0 ? ' is-empty' : ''}`,
+              'data-focus-key': `reserve-${c}`,
+              'aria-label': `${t('action.edit')} ${t('reserve.row')} · ${a.name}`,
+              onclick: () => editReserveStart(ctx, c),
+            },
+            v === 0 ? '–' : fmtNumber(v, { sign: true }),
+          ),
+        );
+      }),
+      several ? h('td', { class: 'n muted' }, m.reserve.some((v) => v !== 0) ? money(sum(m.reserve), { plain: true, tone: 'none' }) : null) : null,
+      noteCell(),
+    ),
+  );
 
   // Saldo inicial
   rows.push(
@@ -500,7 +530,7 @@ function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: 
   return h(
     'tr',
     { class: `row-line${line.amount === 0 ? ' is-zero' : ''}`, 'data-sort-group': sortGroup },
-    h('th', { scope: 'row' }, sortGroup ? rowHandle(line.name, `move-${line.kind}-${line.index}`) : null, h('span', { class: 'line-name' }, line.name), marks),
+    h('th', { scope: 'row' }, sortGroup ? rowHandle(line.name, `move-${line.kind}-${line.index}`) : null, h('span', { class: 'line-name' }, line.name), marks, line.toReserve ? chip(t('reserve.chip'), 'neutral') : null),
     order.map((c) => {
       const delta = line.deltas[c] ?? 0;
       const involved = delta !== 0 || line.account === c || line.to === c;

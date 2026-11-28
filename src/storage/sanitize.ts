@@ -58,6 +58,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       name: cleanText(a['name']) || `${defaultAccountName} ${i + 1}`,
       initial: num(a['initial']),
       ...(a['spent'] === true ? { spent: true } : {}),
+      ...(num(a['reserve']) !== 0 ? { reserve: num(a['reserve']) } : {}),
     }));
   if (accounts.length === 0) accounts.push({ name: defaultAccountName, initial: 0 });
   const n = accounts.length;
@@ -95,6 +96,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
       const link = cleanText(it['dom'], 64);
       if (link) item.dom = link;
       if (it['estimated'] === true) item.estimated = true;
+      if (it['reserve'] === true) item.reserve = true;
       return item;
     });
 

@@ -54,6 +54,10 @@ export interface Line {
   note: string;
   /** Traspaso a una cuenta «de gasto diario»: cuenta como gasto. */
   toSpent: boolean;
+  /** Efecto en la fila «Deuda / Ahorro» de cada cuenta (ver `Item.reserve`). */
+  reserve: number[];
+  /** ¿Va a la fila «Deuda / Ahorro»? */
+  toReserve: boolean;
 }
 
 export type StartSource = 'initial' | 'real' | 'projected';
@@ -90,6 +94,8 @@ export interface MonthResult {
   debts: { name: string; account: number; remaining: number; note: string; index: number; manual: boolean }[];
   /** Filas libres y traspaso del mes (ya sumados en `delta`). */
   extras: MonthExtras;
+  /** Fila «Deuda / Ahorro» a fin de mes, por cuenta (negativo: deuda). */
+  reserve: number[];
 }
 
 export interface YearResult {
@@ -148,13 +154,17 @@ export function monthLines(data: AppData, month: number): Line[] {
     const override = lookup(overrides, key);
     const amount = round2(override ?? item.amount);
     const deltas = emptyDeltas(n);
+    const reserve = emptyDeltas(n);
     const to = item.type === 'Ahorro' ? item.to : -1;
-    if (item.type === 'Ingreso') addTo(deltas, item.account, amount);
-    else if (item.type === 'Gasto') addTo(deltas, item.account, -amount);
-    else {
+    const toReserve = item.reserve === true;
+    if (item.type === 'Ingreso') addTo(toReserve ? reserve : deltas, item.account, amount);
+    else if (item.type === 'Gasto') {
+      addTo(deltas, item.account, -amount);
+      if (toReserve) addTo(reserve, item.account, amount); // lo pagado baja la deuda
+    } else {
       // Traspaso: sale de una cuenta y entra en la otra (con -1 no entra en ninguna).
       addTo(deltas, item.account, -amount);
-      addTo(deltas, to, amount);
+      addTo(toReserve ? reserve : deltas, to, amount);
     }
     lines.push({
       kind: 'item',
@@ -171,7 +181,9 @@ export function monthLines(data: AppData, month: number): Line[] {
       deltas,
       group: item.group ?? '',
       note: item.note ?? '',
-      toSpent: to >= 0 && config.accounts[to]?.spent === true,
+      toSpent: to >= 0 && config.accounts[to]?.spent === true && !toReserve,
+      reserve,
+      toReserve,
     });
   });
 
@@ -199,6 +211,8 @@ export function monthLines(data: AppData, month: number): Line[] {
       group: payment.group ?? '',
       note: payment.note ?? '',
       toSpent: false,
+      reserve: emptyDeltas(n),
+      toReserve: false,
     });
   });
 
@@ -223,6 +237,8 @@ export function monthLines(data: AppData, month: number): Line[] {
       group: '',
       note: entry.note,
       toSpent: false,
+      reserve: emptyDeltas(n),
+      toReserve: false,
     });
   });
 
@@ -237,6 +253,8 @@ export function computeYear(data: AppData): YearResult {
 
   let prevEnd: number[] = config.accounts.map((a) => round2(a.initial));
   let prevReal: (number | null)[] = new Array<number | null>(n).fill(null);
+  // Fila «Deuda / Ahorro»: lo del 1 de enero y, cada mes, lo que va a ella.
+  let reserve: number[] = config.accounts.map((a) => round2(a.reserve ?? 0));
 
   for (let month = 1; month <= 12; month++) {
     const key = monthKey(config.year, month);
@@ -271,8 +289,11 @@ export function computeYear(data: AppData): YearResult {
     let saved = 0;
     for (const line of lines) {
       for (let c = 0; c < n; c++) delta[c] = round2(delta[c]! + line.deltas[c]!);
-      if (line.type === 'Ingreso') income += line.amount;
-      else if (line.type === 'Gasto' || line.type === 'Pago' || line.toSpent) spending += line.amount;
+      for (let c = 0; c < n; c++) reserve[c] = round2(reserve[c]! + (line.reserve[c] ?? 0));
+      if (line.type === 'Ingreso') {
+        income += line.amount;
+        if (line.toReserve) saved += line.amount; // entra, pero se aparta: no sobra para gastar
+      } else if (line.type === 'Gasto' || line.type === 'Pago' || line.toSpent) spending += line.amount;
       else if (line.account >= 0) saved += line.amount; // lo que viene de fuera (p. ej. la empresa) no es ahorro tuyo
     }
 
@@ -315,6 +336,7 @@ export function computeYear(data: AppData): YearResult {
       totalClosing: sum(closing),
       debts: debtsAt(data, month),
       extras,
+      reserve: [...reserve],
     });
 
     prevEnd = end;

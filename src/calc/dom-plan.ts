@@ -219,7 +219,8 @@ export function cardAccount(config: Config): number | undefined {
 export function ensureCardItem(data: AppData, account: number, name: string): AppData {
   if (account < 0 || account >= data.config.accounts.length || cardItemIndex(data.config, account) >= 0) return data;
   const group = defaultItemGroup(data.config, 'Gasto', account);
-  return addItem(data, { name, type: 'Gasto', amount: 0, account, to: -1, from_month: 1, to_month: 12, ...(group ? { group } : {}) });
+  // Va a la fila «Deuda / Ahorro»: lo que se paga de la tarjeta baja su deuda.
+  return addItem(data, { name, type: 'Gasto', amount: 0, account, to: -1, from_month: 1, to_month: 12, reserve: true, ...(group ? { group } : {}) });
 }
 
 /**

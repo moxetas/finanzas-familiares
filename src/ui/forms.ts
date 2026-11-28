@@ -58,12 +58,36 @@ function deleteAction(onClick: () => void): DialogAction {
 
 // ── Cuentas ─────────────────────────────────────────────────────────────────
 
+/** Fila «Deuda / Ahorro» de una cuenta: lo que había al empezar el año (deuda en negativo). */
+export function editReserveStart(ctx: Ctx, index: number): void {
+  const account = ctx.data.config.accounts[index];
+  if (!account) return;
+  const value = amountField({ label: t('reserve.start'), value: account.reserve ?? null, allowNegative: true, optional: true, hint: t('reserve.start.hint') });
+  openDialog({
+    title: `${t('reserve.row')} · ${account.name}`,
+    content: [value.el, h('p', { class: 'field-hint' }, t('reserve.how'))],
+    actions: [
+      { label: t('action.cancel') },
+      {
+        label: t('action.save'),
+        submit: true,
+        onClick: () => {
+          const v = readAll({ value });
+          if (!v) return false;
+          ctx.commit(updateAccount(ctx.data, index, { ...account, reserve: v.value ?? 0 }));
+        },
+      },
+    ],
+  });
+}
+
 export function editAccount(ctx: Ctx, index: number | null): void {
   const current = index === null ? null : ctx.data.config.accounts[index];
   const fields = {
     name: textField({ label: t('field.name'), value: current?.name ?? '', maxlength: LIMITS.name, hint: t('settings.accounts.noNumbers') }),
     initial: amountField({ label: t('field.initial'), value: current?.initial ?? 0, allowNegative: true }),
     spent: checkboxField({ label: t('field.spent'), checked: current?.spent === true }),
+    reserve: amountField({ label: t('reserve.start'), value: current?.reserve ?? null, allowNegative: true, optional: true, hint: t('reserve.start.hint') }),
   };
   const actions: DialogAction[] = [];
   if (index !== null) actions.push(deleteAction(() => deleteAccount(ctx, index)));
@@ -75,14 +99,14 @@ export function editAccount(ctx: Ctx, index: number | null): void {
       onClick: () => {
         const v = readAll(fields);
         if (!v) return false;
-        const account = { name: v.name, initial: v.initial ?? 0, ...(v.spent ? { spent: true } : {}) };
+        const account = { name: v.name, initial: v.initial ?? 0, ...(v.spent ? { spent: true } : {}), reserve: v.reserve ?? 0 };
         ctx.commit(index === null ? addAccount(ctx.data, account) : updateAccount(ctx.data, index, account));
       },
     },
   );
   openDialog({
     title: index === null ? t('account.new') : t('account.edit'),
-    content: [fields.name.el, fields.initial.el, fields.spent.el],
+    content: [fields.name.el, fields.initial.el, fields.spent.el, fields.reserve.el],
     actions,
   });
 }
@@ -151,6 +175,8 @@ export function editItem(ctx: Ctx, index: number | null): void {
   const to = selectField({ label: t('field.to'), options: toOptions, value: defaultTo });
   const from = monthField({ label: t('field.fromMonth'), value: current?.from_month ?? 1 });
   const until = monthField({ label: t('field.toMonth'), value: current?.to_month ?? 12 });
+  const reserve = checkboxField({ label: t('reserve.field'), checked: current?.reserve === true });
+  const reserveHint = h('p', { class: 'field-hint' });
 
   const accountLabel = account.el.querySelector('label')!;
   const sync = () => {
@@ -164,8 +190,17 @@ export function editItem(ctx: Ctx, index: number | null): void {
     const origin = account.select.value;
     for (const opt of Array.from(to.select.options)) opt.disabled = opt.value === origin;
     if (to.select.value === origin) to.select.value = String(accounts.find((a) => String(a.value) !== origin)?.value ?? -1);
+    // Qué hace «Va a la fila Deuda / Ahorro» con este tipo y estas cuentas.
+    const nameOf = (v: string) => accounts.find((a) => String(a.value) === v)?.label ?? '';
+    reserveHint.textContent =
+      type === 'Ingreso'
+        ? t('reserve.hint.Ingreso', { account: nameOf(account.select.value) })
+        : type === 'Gasto'
+          ? t('reserve.hint.Gasto', { account: nameOf(account.select.value) })
+          : t('reserve.hint.Ahorro', { account: nameOf(to.select.value) });
   };
   account.select.addEventListener('change', sync);
+  to.select.addEventListener('change', sync);
   sync();
   if (!hasSeveral) account.el.hidden = true;
 
@@ -184,7 +219,7 @@ export function editItem(ctx: Ctx, index: number | null): void {
       label: t('action.save'),
       submit: true,
       onClick: () => {
-        const v = readAll({ type: typeField, name, amount, account, to, from, until });
+        const v = readAll({ type: typeField, name, amount, account, to, from, until, reserve });
         if (!v) return false;
         const item = {
           name: v.name,
@@ -194,6 +229,7 @@ export function editItem(ctx: Ctx, index: number | null): void {
           to: v.type === 'Ahorro' ? v.to : -1,
           from_month: v.from,
           to_month: v.until,
+          ...(v.reserve && (v.type !== 'Ahorro' || v.to >= 0) ? { reserve: true } : { reserve: false }),
         };
         ctx.commit(index === null ? addItem(ctx.data, item) : updateItem(ctx.data, index, item));
       },
@@ -202,7 +238,7 @@ export function editItem(ctx: Ctx, index: number | null): void {
 
   openDialog({
     title: index === null ? t('item.new') : t('item.edit'),
-    content: [typeField.el, name.el, amount.el, account.el, to.el, h('div', { class: 'field-row' }, from.el, until.el)],
+    content: [typeField.el, name.el, amount.el, account.el, to.el, h('div', { class: 'field-row' }, from.el, until.el), reserve.el, reserveHint],
     actions,
   });
 }
