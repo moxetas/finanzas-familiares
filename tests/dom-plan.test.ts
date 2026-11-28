@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addPlanCharges, blankData, chargeLabel, monthExtras, planCharges, planDates, removeCharges, removePlanCharges, saveDomRow } from '../src/calc';
+import { addPlanCharges, blankData, cardCharges, computeYear, ensureCardItem, chargeLabel, monthExtras, planCharges, planDates, removeCharges, removePlanCharges, saveDomRow } from '../src/calc';
 import type { AppData, DomPlan, Payment } from '../src/calc/types';
 
 const BOTE = 'Pagos de este mes · salen del bote';
@@ -129,3 +129,38 @@ describe('domiciliación: bloque de su cuenta y meses de la hoja', () => {
     expect(r.config.items.some((x) => x.dom === 'nfx')).toBe(false);
   });
 });
+
+describe('domiciliaciones en la tarjeta de crédito', () => {
+  const withDom = (d: AppData, rows: { c: string; cost: number; plan: DomPlan }[]): AppData => ({
+    ...d,
+    domiciliaciones: { accounts: [], groups: [{ title: 'Tarjeta', rows: rows.map((r) => ({ n: null, c: r.c, t: '', cost: r.cost, from: '', to: '', plan: r.plan })) }] },
+  });
+
+  it('no crean conceptos ni pagos: salen en la tabla de la tarjeta del mes, en la columna de la cuenta que la paga', () => {
+    const netflix: DomPlan = { link: 'n1', every: 1, first: '2027-01-05', account: 1, card: true };
+    const prime: DomPlan = { link: 'p1', every: 12, first: '2027-03-10', account: 1, card: true };
+    let d = addPlanCharges(base(), netflix, 'Netflix', 14.99, '');
+    expect(d).toEqual(base());
+    d = withDom(d, [{ c: 'Netflix', cost: 14.99, plan: netflix }, { c: 'Amazon Prime', cost: 49.9, plan: prime }]);
+    expect(cardCharges(d, '2027-02', 2)).toEqual([{ label: 'Netflix', values: [null, -14.99] }]);
+    expect(cardCharges(d, '2027-03', 2)).toEqual([
+      { label: 'Netflix', values: [null, -14.99] },
+      { label: 'Amazon Prime', values: [null, -49.9] },
+    ]);
+    const year = computeYear(d);
+    // Se ven en el mes, pero no cambian el total: lo que sale de la cuenta es el concepto de la tarjeta.
+    expect(year.months[2]!.extras.auto).toHaveLength(2);
+    expect(year.months[2]!.delta).toEqual(computeYear(base()).months[2]!.delta);
+  });
+
+  it('la cuenta que paga la tarjeta lleva el concepto «Tarjeta de crédito» vacío (solo uno)', () => {
+    const d = ensureCardItem(base(), 1, 'Tarjeta de crédito');
+    const it = d.config.items.find((i) => i.name === 'Tarjeta de crédito')!;
+    expect(it).toMatchObject({ type: 'Gasto', amount: 0, account: 1, from_month: 1, to_month: 12 });
+    expect(ensureCardItem(d, 1, 'Tarjeta de crédito').config.items).toHaveLength(d.config.items.length);
+    // Si ya hay un concepto que empieza por «Tarjeta» en esa cuenta, se usa ese.
+    const own = { ...base(), config: { ...base().config, items: [...base().config.items, { name: 'Tarjeta VISA', type: 'Gasto' as const, amount: 0, account: 1, to: -1, from_month: 1, to_month: 12 }] } };
+    expect(ensureCardItem(own, 1, 'Tarjeta de crédito').config.items).toHaveLength(own.config.items.length);
+  });
+});
+

@@ -3,7 +3,9 @@
  * - 5 «filas libres»: nombre e importes que se escriben mes a mes. Un importe
  *   negativo es un gasto y uno positivo, un ingreso.
  * - 5 filas para los cargos de la tarjeta de crédito (Netflix, Amazon Prime…):
- *   funcionan igual que las libres y van en una tabla aparte, debajo de la del mes.
+ *   se escriben como las libres y van en una tabla aparte, debajo de la del mes.
+ *   Son solo para tenerlos a la vista: NO cuentan en el total del mes, porque
+ *   lo que sale de la cuenta es el concepto «Tarjeta de crédito», escrito a mano.
  * - «Traspaso»: mover dinero entre cuentas ese mes (negativo en la que sale,
  *   positivo en la que entra). Cambia los saldos pero no es gasto ni ingreso.
  *
@@ -32,6 +34,8 @@ export interface MonthExtras {
   free: ExtraRow[];
   /** Cargos de la tarjeta (fila `CARD_SLOT0 + i`). */
   card: ExtraRow[];
+  /** Domiciliaciones que se cargan en la tarjeta este mes (no se editan aquí). */
+  auto?: ExtraRow[];
   transfer: (number | null)[];
 }
 
@@ -54,12 +58,12 @@ export function monthExtras(data: AppData, ym: string, cols: number): MonthExtra
   };
 }
 
-/** Efecto de las filas extra: por columna, y cuánto es ingreso y cuánto gasto. */
+/** Efecto de las filas extra: por columna, y cuánto es ingreso y cuánto gasto. Los cargos de la tarjeta no cuentan. */
 export function extrasEffect(extras: MonthExtras): { delta: number[]; income: number; spending: number } {
   const delta = extras.transfer.map((v) => v ?? 0);
   let income = 0;
   let spending = 0;
-  for (const row of [...extras.free, ...extras.card]) {
+  for (const row of extras.free) {
     row.values.forEach((v, c) => {
       if (v === null) return;
       delta[c] = (delta[c] ?? 0) + v;

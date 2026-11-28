@@ -246,7 +246,7 @@ function sanitizePlan(raw: unknown): DomPlan | undefined {
   const every = Number(raw['every']);
   const account = Number(raw['account']);
   if (!link || !parseDate(first) || !EVERY.includes(every) || !Number.isInteger(account) || account < 0) return undefined;
-  return { link, every, first, account };
+  return { link, every, first, account, ...(raw['card'] === true ? { card: true } : {}) };
 }
 
 function sanitizeDom(raw: unknown): Domiciliaciones | undefined {

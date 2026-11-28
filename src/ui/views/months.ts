@@ -533,7 +533,7 @@ function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: 
         ),
       );
     }),
-    several ? h('td', { class: 'n muted' }, money(sum(line.deltas), { plain: true, tone: 'none' })) : null,
+    several ? h('td', { class: 'n muted' }, line.amount === 0 ? null : money(sum(line.deltas), { plain: true, tone: 'none' })) : null,
     hasNotes ? h('td', { class: 'note-cell' }, line.note) : null,
   );
 }

@@ -21,6 +21,7 @@
  */
 
 import { debtsAt } from './debts';
+import { cardCharges } from './dom-plan';
 import { extrasEffect, monthExtras, type MonthExtras } from './extras';
 import { itemOverrideKey, monthKey, parseDate, paymentOverrideKey, realBalanceKey } from './keys';
 import { round2, sum } from './money';
@@ -276,7 +277,7 @@ export function computeYear(data: AppData): YearResult {
     }
 
     // Filas libres (ingreso o gasto) y traspaso entre cuentas de este mes.
-    const extras = monthExtras(data, key, n);
+    const extras: MonthExtras = { ...monthExtras(data, key, n), auto: cardCharges(data, key, n) };
     const effect = extrasEffect(extras);
     for (let c = 0; c < n; c++) delta[c] = round2(delta[c]! + (effect.delta[c] ?? 0));
     income += effect.income;

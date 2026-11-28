@@ -5,7 +5,7 @@
 
 import { CARD_SLOT0, type ExtraRow, type MonthExtras } from '../calc/extras';
 import { fmtNumber, fmtYearMonth, t } from '../i18n';
-import { card, money } from './components';
+import { card, chip, money } from './components';
 import type { Ctx } from './context';
 import { h } from './dom';
 import { editExtraCell, editFreeLabel, extraRowName } from './forms';
@@ -84,12 +84,28 @@ export function freeRows(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement[] 
 
 /**
  * Tabla de los cargos de la tarjeta de crédito del mes (Netflix, Amazon Prime…),
- * con las mismas columnas que la del mes. Cuentan en el total del mes.
+ * con las mismas columnas que la del mes. Arriba, las domiciliaciones que se
+ * cargan en la tarjeta (salen solas); debajo, 5 filas para apuntar a mano.
+ * Es solo para verlo: no cuenta en el total del mes.
  */
 export function cardTable(ctx: Ctx, extras: MonthExtras, o: Opts & { head: HTMLElement }): HTMLElement {
   const order = o.order ?? o.colNames.map((_, c) => c);
-  const totals = order.map((c) => rowTotal(extras.card.map((r) => r.values[c] ?? null)));
-  const used = extras.card.some((r) => r.values.some((v) => v !== null));
+  const auto = extras.auto ?? [];
+  const all = [...auto, ...extras.card];
+  const totals = order.map((c) => rowTotal(all.map((r) => r.values[c] ?? null)));
+  const used = all.some((r) => r.values.some((v) => v !== null));
+  const autoRows = auto.map((row) =>
+    h(
+      'tr',
+      { class: 'row-line row-card-dom' },
+      h('th', { scope: 'row' }, h('span', { class: 'line-name' }, row.label), chip(t('extras.card.dom'), 'accent')),
+      order.map((c) => {
+        const v = row.values[c] ?? null;
+        return h('td', { class: `n${(v ?? 0) < 0 ? ' neg' : ''}` }, v === null ? null : fmtNumber(v, { sign: true }));
+      }),
+      o.totalCol ? h('td', { class: 'n muted' }, money(rowTotal(row.values), { plain: true, tone: 'none' })) : null,
+    ),
+  );
   const totalRow = h(
     'tr',
     { class: 'row-sum' },
@@ -101,7 +117,7 @@ export function cardTable(ctx: Ctx, extras: MonthExtras, o: Opts & { head: HTMLE
     'table',
     { class: 'grid-table plan-table card-table' },
     h('thead', null, o.head),
-    h('tbody', null, namedRows(ctx, extras.card, CARD_SLOT0, { ...o, noteCol: false }), totalRow),
+    h('tbody', null, autoRows, namedRows(ctx, extras.card, CARD_SLOT0, { ...o, noteCol: false }), totalRow),
   );
   return card(
     { title: t('extras.card.title'), sub: t('extras.card.sub'), id: 'card-charges' },

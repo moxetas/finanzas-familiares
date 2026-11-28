@@ -11,7 +11,7 @@
  * conceptos ni pagos) van a una fila libre de ese mes, en la columna de la cuenta.
  */
 import { norm } from './debts';
-import { FREE_ROWS, freeCellKey, freeLabelKey, setFreeCell, setFreeLabel } from './extras';
+import { type ExtraRow, FREE_ROWS, freeCellKey, freeLabelKey, setFreeCell, setFreeLabel } from './extras';
 import { daysInMonth, parseDate } from './keys';
 import { round2 } from './money';
 import { addItem, addPayment, defaultPaymentGroup, mostUsedGroup, removeItem, removePayment, updateItem } from './mutations';
@@ -121,6 +121,8 @@ export function removePlanCharges(data: AppData, link: string, fromDate: string)
 
 /** Pone en la tabla del mes los cargos de la domiciliación con fecha desde `fromDate`. */
 export function addPlanCharges(data: AppData, plan: DomPlan, concept: string, amount: number, fromDate: string): AppData {
+  // Las de la tarjeta no ponen nada: salen solas en la tabla de la tarjeta (`cardCharges`).
+  if (plan.card) return data;
   const account = plan.account < data.config.accounts.length ? plan.account : 0;
   const value = round2(Math.abs(amount));
   if (!value) return data;
@@ -195,4 +197,50 @@ export function removeCharges(data: AppData, found: { payments: number[]; items:
     else next = updateItem(next, i, { ...it, to_month: Math.min(it.to_month, f.month - 1) });
   }
   return next;
+}
+
+// ── Domiciliaciones en la tarjeta de crédito ────────────────────────────────
+
+/** Concepto donde se apunta lo que se paga de la tarjeta: un gasto de `account` que empieza por «Tarjeta». */
+export function cardItemIndex(config: Config, account: number): number {
+  return config.items.findIndex((it) => it.type === 'Gasto' && it.account === account && norm(it.name).startsWith('tarjeta'));
+}
+
+/** Cuenta desde la que se suele pagar la tarjeta: la de su concepto, si lo hay. */
+export function cardAccount(config: Config): number | undefined {
+  const it = config.items.find((i) => i.type === 'Gasto' && norm(i.name).startsWith('tarjeta'));
+  return it && it.account < config.accounts.length ? it.account : undefined;
+}
+
+/**
+ * Si `account` no tiene aún concepto de la tarjeta, lo crea: un gasto de 0 € todo
+ * el año, que sale vacío y se escribe a mano cada mes con lo que cobran de verdad.
+ */
+export function ensureCardItem(data: AppData, account: number, name: string): AppData {
+  if (account < 0 || account >= data.config.accounts.length || cardItemIndex(data.config, account) >= 0) return data;
+  const group = defaultItemGroup(data.config, 'Gasto', account);
+  return addItem(data, { name, type: 'Gasto', amount: 0, account, to: -1, from_month: 1, to_month: 12, ...(group ? { group } : {}) });
+}
+
+/**
+ * Cargos de las domiciliaciones de la tarjeta que caen en el mes `ym`, en la
+ * columna de la cuenta desde la que se paga la tarjeta (importe en negativo).
+ */
+export function cardCharges(data: AppData, ym: string, cols: number): ExtraRow[] {
+  const year = Number(ym.slice(0, 4));
+  const out: ExtraRow[] = [];
+  for (const g of data.domiciliaciones?.groups ?? []) {
+    for (const r of g.rows) {
+      const plan = r.plan;
+      const value = r.cost === null ? 0 : round2(Math.abs(r.cost));
+      if (!plan?.card || !value || plan.account >= cols) continue;
+      for (const date of planDates(plan.first, plan.every, year)) {
+        if (!date.startsWith(ym)) continue;
+        const values: (number | null)[] = Array.from({ length: cols }, () => null);
+        values[plan.account] = -value;
+        out.push({ label: plan.every === 1 ? r.c : r.c + chargeLabel(date, plan.first, plan.every), values });
+      }
+    }
+  }
+  return out;
 }

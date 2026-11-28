@@ -5,6 +5,7 @@ import { monthKey, daysInMonth, todayISO } from '../calc/keys';
 import { CARD_SLOT0, setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
 import { accountOrder, inOrder } from '../calc/order';
 import { parseAmount } from '../calc/money';
+import { norm } from '../calc/debts';
 import {
   removeDomRow,
   saveDomRow,
@@ -16,6 +17,8 @@ import {
   defaultPaymentGroup,
   findSamePayment,
   addPlanCharges,
+  cardAccount,
+  ensureCardItem,
   EVERY_OPTIONS,
   planCharges,
   planGroup,
@@ -450,7 +453,19 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
     for (const p of config.payments) if ((p.group ?? '') === g) count.set(p.account, (count.get(p.account) ?? 0) + 1);
     return [...count].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
   })();
-  const account = selectField({ label: t('dom.field.account'), options: accountOptions(ctx), value: plan && plan.account < config.accounts.length ? plan.account : usual });
+  // La tarjeta de crédito sale como una cuenta más (valor -1). Entonces se elige desde qué cuenta se paga la tarjeta.
+  const known = plan && plan.account < config.accounts.length ? plan.account : undefined;
+  const account = selectField({
+    label: t('dom.field.account'),
+    options: [...accountOptions(ctx), { value: -1, label: t('dom.card.option') }],
+    value: plan?.card ? -1 : (known ?? usual),
+  });
+  const bankia = config.accounts.findIndex((a) => norm(a.name).includes('bankia'));
+  const payFrom = selectField({
+    label: t('dom.field.payFrom'),
+    options: accountOptions(ctx),
+    value: plan?.card && known !== undefined ? known : (cardAccount(config) ?? (bankia >= 0 ? bankia : usual)),
+  });
   const summary = h('p', { class: 'field-hint dom-plan-hint', role: 'status' });
   // Domiciliación antigua (sin enlace) que pasa a tener cargos: se ofrece quitar lo que ya había apuntado a mano.
   const old = current && !plan ? planCharges(ctx.data, current, '') : { payments: [], items: [] };
@@ -464,16 +479,25 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
   const sync = () => {
     const n = Number(every.select.value);
     first.el.hidden = n === 0;
-    account.el.hidden = n === 0 || config.accounts.length < 2;
+    const onCard = Number(account.select.value) === -1;
+    account.el.hidden = n === 0;
+    payFrom.el.hidden = n === 0 || !onCard || config.accounts.length < 2;
     replace.el.hidden = n === 0 || oldNames.length === 0;
     const g = planGroup(config, n, Number(account.select.value));
     const block = g || t(n === 1 ? 'months.group.Gasto' : 'months.group.Pago');
     const date = first.el.querySelector('input')?.value ?? '';
     summary.textContent =
-      n === 0 ? t('dom.plan.none') : n === 1 ? t('dom.plan.month', { block }) : t('dom.plan.pay', { n: Math.round(12 / n), block, date: date ? fmtDate(date, { year: true }) : '—' });
+      n === 0
+        ? t('dom.plan.none')
+        : onCard
+          ? t('dom.plan.card', { account: config.accounts[Number(payFrom.select.value)]?.name ?? '' })
+          : n === 1
+            ? t('dom.plan.month', { block })
+            : t('dom.plan.pay', { n: Math.round(12 / n), block, date: date ? fmtDate(date, { year: true }) : '—' });
   };
   every.select.addEventListener('change', sync);
   account.select.addEventListener('change', sync);
+  payFrom.select.addEventListener('change', sync);
   first.el.addEventListener('change', sync);
   first.el.addEventListener('input', sync);
   sync();
@@ -504,7 +528,7 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
       label: t('action.save'),
       submit: true,
       onClick: () => {
-        const v = readAll({ concept, cost, from, to, groupField, ticker, first, account });
+        const v = readAll({ concept, cost, from, to, groupField, ticker, first, account, payFrom });
         if (!v) return false;
         const n = Number(every.select.value);
         if (n && !v.cost) {
@@ -512,8 +536,13 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
           cost.focus();
           return false;
         }
-        const nextPlan: DomPlan | undefined = n ? { link: plan?.link ?? newId(), every: n, first: v.first, account: v.account } : undefined;
+        const onCard = v.account === -1;
+        const nextPlan: DomPlan | undefined = n
+          ? { link: plan?.link ?? newId(), every: n, first: v.first, account: onCard ? v.payFrom : v.account, ...(onCard ? { card: true } : {}) }
+          : undefined;
         let data = ctx.data;
+        // En la tarjeta: la cuenta que la paga lleva el concepto «Tarjeta de crédito» (vacío, se escribe a mano cada mes).
+        if (nextPlan?.card) data = ensureCardItem(data, nextPlan.account, t('dom.card.item'));
         // Con cargos, guardar siempre los rehace (así se corrigen bloque y meses que faltaban).
         const changed = !!nextPlan || !!plan;
         if (changed) {
@@ -528,7 +557,7 @@ export function editDomRow(ctx: Ctx, at: { g: number; r: number } | null, group?
   );
   openDialog({
     title: at ? t('dom.edit') : t('dom.new'),
-    content: [concept.el, every.el, cost.el, first.el, account.el, summary, replace.el, from.el, to.el, groupField.el, ticker.el],
+    content: [concept.el, every.el, cost.el, first.el, account.el, payFrom.el, summary, replace.el, from.el, to.el, groupField.el, ticker.el],
     actions,
   });
 }

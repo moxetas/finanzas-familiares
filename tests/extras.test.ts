@@ -40,7 +40,7 @@ describe('filas libres y traspaso', () => {
     expect(back.overrides['2026-11_t_c0']).toBe(-300);
   });
 
-  it('hay 5 filas libres y 5 de tarjeta; las de tarjeta cuentan en el mes y se guardan', () => {
+  it('hay 5 filas libres y 5 de tarjeta; las de tarjeta NO cuentan en el mes y se guardan', () => {
     let d = setFreeCell(base(), '2027-02', 4, 0, -10);
     d = setFreeCell(d, '2027-02', CARD_SLOT0, 1, -14.99);
     d = setFreeLabel(d, '2027-02', CARD_SLOT0 + 4, 'Amazon Prime');
@@ -50,8 +50,8 @@ describe('filas libres y traspaso', () => {
     expect(feb.extras.free).toHaveLength(5);
     expect(feb.extras.card).toHaveLength(5);
     expect(feb.extras.card[4]).toEqual({ label: 'Amazon Prime', values: [null, -4.99] });
-    expect(feb.delta).toEqual([-10, -19.98]);
-    expect(feb.spending).toBe(29.98);
+    expect(feb.delta).toEqual([-10, 0]);
+    expect(feb.spending).toBe(10);
     const back = sanitizeData(JSON.parse(JSON.stringify(d)), 2027, 'A');
     expect(monthExtras(back, '2027-02', 2)).toEqual(monthExtras(d, '2027-02', 2));
   });

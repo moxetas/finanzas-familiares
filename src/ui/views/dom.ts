@@ -39,7 +39,7 @@ export function domView(ctx: Ctx): HTMLElement {
               'button',
               { type: 'button', class: 'row-btn', 'data-focus-key': `dom-${gi}-${ri}`, onclick: () => editDomRow(ctx, { g: gi, r: ri }) },
               h('span', { class: 'row-date' }, r.n === null ? String(ri + 1) : String(r.n)),
-              h('span', { class: 'row-main' }, h('span', { class: 'row-title' }, r.c), h('span', { class: 'row-sub' }, [where, r.t].filter(Boolean).join(' · '))),
+              h('span', { class: 'row-main' }, h('span', { class: 'row-title' }, r.c), h('span', { class: 'row-sub' }, [r.plan?.card ? `💳 ${t('dom.card.option')}` : '', where, r.t].filter(Boolean).join(' · '))),
               r.cost === null ? null : h('span', { class: 'num' }, fmtMoney(r.cost)),
               icon('edit', 18),
             ),

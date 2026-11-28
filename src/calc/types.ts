@@ -145,7 +145,15 @@ export interface DomPlan {
   every: number;
   /** Primer cargo, AAAA-MM-DD. */
   first: string;
+  /** Cuenta de donde sale. Con `card`, la cuenta desde la que se paga la tarjeta. */
   account: number;
+  /**
+   * Se carga en la tarjeta de crédito: no crea conceptos ni pagos, sale cada mes
+   * que toca en la tabla «Cargos en la tarjeta de crédito» (ver `cardCharges`).
+   * Lo que de verdad sale de la cuenta es el concepto «Tarjeta de crédito», que
+   * se escribe a mano cada mes.
+   */
+  card?: boolean;
 }
 
 export interface Domiciliaciones {

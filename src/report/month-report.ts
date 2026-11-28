@@ -64,6 +64,7 @@ function extrasRows(extras: MonthExtras, colName: (c: number) => string): Report
   const rows: ReportRow[] = [];
   const named = [
     ...extras.free.map((row, s) => ({ row, name: row.label || t('extras.free', { n: s + 1 }) })),
+    ...(extras.auto ?? []).map((row) => ({ row, name: `${row.label} (${t('extras.card.short')})` })),
     ...extras.card.map((row, s) => ({ row, name: `${row.label || t('extras.card', { n: s + 1 })} (${t('extras.card.short')})` })),
   ];
   for (const { row, name } of named) {
