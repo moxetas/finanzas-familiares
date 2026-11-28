@@ -342,7 +342,7 @@ export function settingsView(ctx: Ctx, section?: string): HTMLElement {
         h('input', {
           id: 'extra-tabs',
           type: 'checkbox',
-          checked: meta.extraTabs === true,
+          checked: meta.extraTabs !== false,
           onchange: (ev: Event) => ctx.store.setMeta({ extraTabs: (ev.target as HTMLInputElement).checked }),
         }),
         h('label', { for: 'extra-tabs' }, t('settings.extraTabs')),

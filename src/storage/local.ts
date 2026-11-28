@@ -19,6 +19,7 @@ export interface Meta {
   /** Ya se ha visto la guía de primeros pasos. */
   guideSeen?: boolean;
   /** Mostrar siempre las pestañas Domiciliaciones y Sueldos. */
+  /** Ver siempre las pestañas Domiciliaciones y Sueldos (sin valor: sí). */
   extraTabs?: boolean;
   /** Foto de cabecera: un id de src/ui/backdrop.ts, 'tabs' (una por pestaña) o 'none'. */
   backdrop?: string;

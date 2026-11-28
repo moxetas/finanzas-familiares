@@ -122,12 +122,12 @@ export function mountApp(root: HTMLElement, store: Store): void {
     paintHero();
     document.getElementById('topbar-year')!.textContent = String(store.state.data.config.year);
 
-    // Domiciliaciones y Sueldos solo salen si se usan (o si se activan en Ajustes): menos pestañas al empezar.
+    // Domiciliaciones y Sueldos se ven siempre; si se quitan en Ajustes, solo salen cuando se usan.
     const meta = store.state.meta;
     const cfg = store.state.data.config;
     const extra: Partial<Record<Route['name'], boolean>> = {
-      dom: meta.extraTabs === true || (store.state.data.domiciliaciones?.groups.length ?? 0) > 0,
-      sueldos: meta.extraTabs === true || (cfg.salaries?.length ?? 0) > 0 || (cfg.btc?.length ?? 0) > 0,
+      dom: meta.extraTabs !== false || (store.state.data.domiciliaciones?.groups.length ?? 0) > 0,
+      sueldos: meta.extraTabs !== false || (cfg.salaries?.length ?? 0) > 0 || (cfg.btc?.length ?? 0) > 0,
     };
     for (const [name, a] of tabLinks) {
       if (name in extra) (a.parentElement as HTMLElement).hidden = !extra[name] && route.name !== name;
