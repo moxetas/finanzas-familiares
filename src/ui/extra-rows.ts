@@ -1,11 +1,14 @@
-/** Filas libres y fila «Traspaso» de la tabla de un mes (año planificado y años anteriores). */
+/**
+ * Filas libres y fila «Traspaso» de la tabla de un mes (año planificado y años
+ * anteriores), y la tabla aparte de los cargos de la tarjeta de crédito.
+ */
 
-import type { MonthExtras } from '../calc/extras';
+import { CARD_SLOT0, type ExtraRow, type MonthExtras } from '../calc/extras';
 import { fmtNumber, fmtYearMonth, t } from '../i18n';
-import { money } from './components';
+import { card, money } from './components';
 import type { Ctx } from './context';
 import { h } from './dom';
-import { editExtraCell, editFreeLabel } from './forms';
+import { editExtraCell, editFreeLabel, extraRowName } from './forms';
 
 interface Opts {
   ym: string;
@@ -45,9 +48,11 @@ function cell(ctx: Ctx, o: Opts, value: number | null, col: number, slot: number
 
 const rowTotal = (values: (number | null)[]) => Math.round(values.reduce<number>((s, v) => s + (v ?? 0), 0) * 100) / 100;
 
-export function freeRows(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement[] {
-  return extras.free.map((row, slot) => {
-    const placeholder = t('extras.free', { n: slot + 1 });
+/** Filas extra con nombre (las libres, o las de la tarjeta desde la fila `slot0`). */
+function namedRows(ctx: Ctx, rows: ExtraRow[], slot0: number, o: Opts): HTMLElement[] {
+  return rows.map((row, i) => {
+    const slot = slot0 + i;
+    const placeholder = extraRowName(slot);
     return h(
       'tr',
       { class: 'row-line row-free' },
@@ -71,6 +76,37 @@ export function freeRows(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement[] 
       o.noteCol ? h('td', { class: 'note-cell' }) : null,
     );
   });
+}
+
+export function freeRows(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement[] {
+  return namedRows(ctx, extras.free, 0, o);
+}
+
+/**
+ * Tabla de los cargos de la tarjeta de crédito del mes (Netflix, Amazon Prime…),
+ * con las mismas columnas que la del mes. Cuentan en el total del mes.
+ */
+export function cardTable(ctx: Ctx, extras: MonthExtras, o: Opts & { head: HTMLElement }): HTMLElement {
+  const order = o.order ?? o.colNames.map((_, c) => c);
+  const totals = order.map((c) => rowTotal(extras.card.map((r) => r.values[c] ?? null)));
+  const used = extras.card.some((r) => r.values.some((v) => v !== null));
+  const totalRow = h(
+    'tr',
+    { class: 'row-sum' },
+    h('th', { scope: 'row' }, t('summary.total')),
+    totals.map((v) => h('td', { class: `n${v < 0 ? ' neg' : ''}` }, v !== 0 ? fmtNumber(v, { sign: true }) : '–')),
+    o.totalCol ? h('td', { class: 'n' }, used ? money(rowTotal(totals), { plain: true }) : null) : null,
+  );
+  const table = h(
+    'table',
+    { class: 'grid-table plan-table card-table' },
+    h('thead', null, o.head),
+    h('tbody', null, namedRows(ctx, extras.card, CARD_SLOT0, { ...o, noteCol: false }), totalRow),
+  );
+  return card(
+    { title: t('extras.card.title'), sub: t('extras.card.sub'), id: 'card-charges' },
+    h('div', { class: 'table-wrap', 'data-scroll-key': 'card-charges' }, table),
+  );
 }
 
 export function transferRow(ctx: Ctx, extras: MonthExtras, o: Opts): HTMLElement {

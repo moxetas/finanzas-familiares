@@ -4,7 +4,8 @@ import { computeYear, entriesOfMonth, type Line, type LineType, type MonthResult
 import { historyCellKey, monthKey, todayISO } from '../../calc/keys';
 import { parseAmount, sum } from '../../calc/money';
 import { setRealBalance } from '../../calc/mutations';
-import { accountOrder, inOrder, moveRow, rowKeys, sortedPositions } from '../../calc/order';
+import { accountOrder, columnOrder, inOrder, moveRow, rowKeys, sortedPositions, swapAccounts } from '../../calc/order';
+import { norm } from '../../calc/debts';
 import { fmtDate, fmtInput, fmtMoney, fmtNumber, fmtYearMonth, monthName, t, type MessageKey } from '../../i18n';
 import { button, card, chip, empty, kpi, money } from '../components';
 import type { Ctx } from '../context';
@@ -16,7 +17,7 @@ import { openImport } from '../import-ai';
 import { isFreeRowsAnchor } from '../../calc/extras';
 import { historyMonth, prevMonth } from '../../calc/history-carry';
 import { monthPdfButton } from '../report-actions';
-import { freeRows, transferRow } from '../extra-rows';
+import { cardTable, freeRows, transferRow } from '../extra-rows';
 import { dragHandle, makeSortable } from '../sortable';
 
 /**
@@ -58,6 +59,36 @@ function sortableRows(ctx: Ctx, table: HTMLElement, shown: Map<string, string[]>
 
 /** Asa para mover la fila `name` (solo se ve en modo «Ordenar»). */
 const rowHandle = (name: string, focusKey: string) => dragHandle(t('months.order.move', { name }), focusKey);
+
+/**
+ * Cabecera de la columna de una cuenta. En modo «Ordenar» lleva ‹ › para
+ * moverla: `prev`/`next` son la cuenta con la que se cambia de sitio (o -1).
+ */
+function accountHead(ctx: Ctx, name: string, account: number, prev: number, next: number): HTMLElement {
+  const move = (other: number, key: MessageKey, glyph: string, dir: string) =>
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'col-move-btn',
+        'aria-label': t(key, { name }),
+        'data-focus-key': `colmove-${account}-${dir}`,
+        disabled: other < 0,
+        onclick: () => {
+          if (account < 0 || other < 0) return;
+          const order = accountOrder(ctx.data.config);
+          ctx.commit({ ...ctx.data, config: { ...ctx.data.config, accountOrder: swapAccounts(order, account, other) } });
+        },
+      },
+      h('span', { 'aria-hidden': 'true' }, glyph),
+    );
+  return h(
+    'th',
+    { scope: 'col', class: 'n' },
+    account >= 0 ? h('span', { class: 'col-move' }, move(prev, 'months.order.colPrev', '‹', 'p'), move(next, 'months.order.colNext', '›', 'n')) : null,
+    name,
+  );
+}
 
 /** Meses de años anteriores guardados en `history`, ordenados: `["2026-02", …]`. */
 export function historyKeys(ctx: Ctx): string[] {
@@ -105,6 +136,7 @@ export function monthsView(ctx: Ctx, param: string | undefined): HTMLElement {
       kpi(t('kpi.leftover'), result.leftover, { tone: 'accent' }),
     ),
     planCard(ctx, result, month),
+    planCardCharges(ctx, result),
     realCard(ctx, result, ym),
     entriesCard(ctx, ym),
   );
@@ -137,7 +169,10 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
     );
   };
   // Filas del mes; las libres van delante de la partida elegida en Ajustes (o al final) y el traspaso al final.
-  const extraOpts = { ym, colNames: m.cols, totalCol: false, noteCol: false };
+  // Columnas en el orden de las cuentas (las que se llaman igual que una cuenta de la app).
+  const colAccount = m.cols.map((name) => ctx.data.config.accounts.findIndex((a) => norm(a.name) === norm(name)));
+  const cols = columnOrder(colAccount, accountOrder(ctx.data.config));
+  const extraOpts = { ym, colNames: m.cols, totalCol: false, noteCol: false, order: cols };
   // Filas en el orden elegido con «Ordenar» (`ri` sigue siendo su posición en la hoja).
   const keys = rowKeys(m.rows.map((r) => r.l));
   const positions = sortedPositions(keys, ctx.data.config.rowOrder);
@@ -151,7 +186,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
         out.push(...freeRows(ctx, extras, extraOpts));
         placed = true;
       }
-      out.push(h('tr', { class: debtRows[ri] ? 'row-line row-debt' : 'row-line', 'data-sort-group': 'h' }, h('th', { scope: 'row' }, rowHandle(r.l, `hmove-${ri}`), h('span', { class: 'line-name' }, r.l), debtRows[ri] ? h('span', { class: 'debt-note' }, t('months.debt.info')) : null), edited[ri]!.map((v, ci) => cell(v, ri, ci, `${r.l} · ${m.cols[ci]}`))));
+      out.push(h('tr', { class: debtRows[ri] ? 'row-line row-debt' : 'row-line', 'data-sort-group': 'h' }, h('th', { scope: 'row' }, rowHandle(r.l, `hmove-${ri}`), h('span', { class: 'line-name' }, r.l), debtRows[ri] ? h('span', { class: 'debt-note' }, t('months.debt.info')) : null), cols.map((ci) => cell(edited[ri]![ci] ?? null, ri, ci, `${r.l} · ${m.cols[ci]}`))));
     });
     if (!placed) out.push(...freeRows(ctx, extras, extraOpts));
     out.push(transferRow(ctx, extras, extraOpts));
@@ -160,7 +195,14 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
   const table = h(
     'table',
     { class: 'grid-table plan-table' },
-    h('thead', null, h('tr', null, h('th', { scope: 'col' }, t('months.col.item')), m.cols.map((c) => h('th', { scope: 'col', class: 'n' }, c)))),
+    h('thead', null, h('tr', null, h('th', { scope: 'col' }, t('months.col.item')), cols.map((ci, i) => {
+      // Se cambia de sitio con la columna de cuenta más cercana a cada lado.
+      const near = (step: number) => {
+        for (let j = i + step; j >= 0 && j < cols.length; j += step) if (colAccount[cols[j]!]! >= 0) return colAccount[cols[j]!]!;
+        return -1;
+      };
+      return accountHead(ctx, m.cols[ci]!, colAccount[ci]!, near(-1), near(1));
+    }))),
     h(
       'tbody',
       null,
@@ -170,11 +212,11 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
             'tr',
             { class: 'row-sum row-start' },
             h('th', { scope: 'row' }, t('months.history.prevBalance'), h('span', { class: 'debt-note' }, t('months.history.prevBalance.hint', { month: prevName }))),
-            prevBalance.map((v) => h('td', { class: `n${(v ?? 0) < 0 ? ' neg' : ''}` }, v === null ? '–' : fmtNumber(v, { sign: true }))),
+            cols.map((ci) => prevBalance[ci] ?? null).map((v) => h('td', { class: `n${(v ?? 0) < 0 ? ' neg' : ''}` }, v === null ? '–' : fmtNumber(v, { sign: true }))),
           )
         : null,
       historyBody(),
-      h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), tot.map((v) => h('td', { class: 'n strong' }, money(v, { plain: true })))),
+      h('tr', { class: 'row-sum row-end' }, h('th', { scope: 'row' }, t('months.row.total')), cols.map((ci) => h('td', { class: 'n strong' }, money(tot[ci] ?? 0, { plain: true })))),
     ),
   );
   sortableRows(ctx, table, shown);
@@ -208,6 +250,7 @@ function historyView(ctx: Ctx, ym: string): HTMLElement {
       h('div', { class: 'table-wrap', 'data-scroll-key': 'plan' }, table),
       h('p', { class: 'field-hint' }, t('months.amountsIn')),
     ),
+    cardTable(ctx, extras, { ...extraOpts, head: h('tr', null, h('th', { scope: 'col' }, t('months.col.item')), cols.map((ci) => h('th', { scope: 'col', class: 'n' }, m.cols[ci]))) }),
     realCard(ctx, fake, ym, { planned: false }),
     entriesCard(ctx, ym),
   );
@@ -421,7 +464,7 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
         'tr',
         null,
         h('th', { scope: 'col' }, t('months.col.item')),
-        order.map((c) => h('th', { scope: 'col', class: 'n' }, accounts[c]?.name ?? '')),
+        order.map((c, i) => accountHead(ctx, accounts[c]?.name ?? '', c, order[i - 1] ?? -1, order[i + 1] ?? -1)),
         several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
         hasNotes ? h('th', { scope: 'col' }, t('months.col.note')) : null,
       ),
@@ -440,6 +483,21 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
     ),
     h('p', { class: 'field-hint' }, t('months.amountsIn')),
   );
+}
+
+/** Tabla de los cargos de la tarjeta de un mes del año planificado. */
+function planCardCharges(ctx: Ctx, m: MonthResult): HTMLElement {
+  const accounts = ctx.data.config.accounts;
+  const order = accountOrder(ctx.data.config);
+  const several = accounts.length > 1;
+  const head = h(
+    'tr',
+    null,
+    h('th', { scope: 'col' }, t('months.col.item')),
+    order.map((c) => h('th', { scope: 'col', class: 'n' }, accounts[c]?.name ?? '')),
+    several ? h('th', { scope: 'col', class: 'n' }, t('months.col.total')) : null,
+  );
+  return cardTable(ctx, m.extras, { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: false, order, head });
 }
 
 function lineRow(ctx: Ctx, line: Line, month: number, order: number[], several: boolean, hasNotes: boolean, sortGroup?: string): HTMLElement {

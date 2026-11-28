@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountOrder, addAccount, blankData, computeYear, inOrder, moveAccount, moveRow, removeAccount, rowKeys, sortedPositions, type AppData } from '../src/calc';
+import { accountOrder, addAccount, blankData, columnOrder, swapAccounts, computeYear, inOrder, moveAccount, moveRow, removeAccount, rowKeys, sortedPositions, type AppData } from '../src/calc';
 import { sanitizeData } from '../src/storage/sanitize';
 
 function fourAccounts(): AppData {
@@ -110,5 +110,19 @@ describe('orden de los conceptos de la tabla de Meses', () => {
     const withOrder = { ...d, config: { ...d.config, rowOrder: ['Luz', ' Agua ', 'Luz', 7] as unknown as string[] } };
     expect(sanitizeData(JSON.parse(JSON.stringify(withOrder)), 2027, 'A').config.rowOrder).toEqual(['Luz', 'Agua']);
     expect(computeYear(withOrder)).toEqual(computeYear(d));
+  });
+});
+
+describe('orden de las columnas', () => {
+  it('intercambia dos cuentas', () => {
+    expect(swapAccounts([2, 0, 1], 0, 1)).toEqual([2, 1, 0]);
+    expect(swapAccounts([2, 0, 1], 0, 5)).toEqual([2, 0, 1]);
+  });
+
+  it('las columnas de la hoja siguen el orden de las cuentas; las demás, detrás de su vecina', () => {
+    // Columnas: ING (cuenta 1), ETF (sin cuenta), BANKIA (cuenta 0)
+    expect(columnOrder([1, -1, 0], [0, 1])).toEqual([2, 0, 1]);
+    expect(columnOrder([1, -1, 0], [1, 0])).toEqual([0, 1, 2]);
+    expect(columnOrder([-1, 1, 0], [0, 1])).toEqual([0, 2, 1]);
   });
 });

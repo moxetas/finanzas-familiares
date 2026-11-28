@@ -2,7 +2,7 @@
 
 import type { Line } from '../calc/engine';
 import { monthKey, daysInMonth, todayISO } from '../calc/keys';
-import { setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
+import { CARD_SLOT0, setFreeCell, setFreeLabel, setTransferCell } from '../calc/extras';
 import { accountOrder, inOrder } from '../calc/order';
 import { parseAmount } from '../calc/money';
 import {
@@ -564,11 +564,16 @@ export function editExtraCell(ctx: Ctx, opts: { ym: string; col: number; slot: n
   amount.input.select();
 }
 
+/** Nombre por defecto de una fila extra: «Fila libre 2» o «Cargo de tarjeta 1». */
+export function extraRowName(slot: number): string {
+  return slot >= CARD_SLOT0 ? t('extras.card', { n: slot - CARD_SLOT0 + 1 }) : t('extras.free', { n: slot + 1 });
+}
+
 /** Nombre de una fila libre en un mes. */
 export function editFreeLabel(ctx: Ctx, ym: string, slot: number, current: string): void {
   const name = textField({ label: t('field.concept'), value: current, optional: true, maxlength: 80, hint: t('extras.label.hint') });
   openDialog({
-    title: `${t('extras.free', { n: slot + 1 })} · ${fmtYearMonth(ym)}`,
+    title: `${extraRowName(slot)} · ${fmtYearMonth(ym)}`,
     content: [name.el],
     actions: [
       { label: t('action.cancel') },

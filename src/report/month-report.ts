@@ -62,12 +62,16 @@ function movementsTable(title: string, rows: ReportRow[]): ReportTable {
 /** Filas libres y traspaso de un mes; `colName(c)` da el nombre de la columna (cuenta). */
 function extrasRows(extras: MonthExtras, colName: (c: number) => string): ReportRow[] {
   const rows: ReportRow[] = [];
-  extras.free.forEach((row, s) => {
+  const named = [
+    ...extras.free.map((row, s) => ({ row, name: row.label || t('extras.free', { n: s + 1 }) })),
+    ...extras.card.map((row, s) => ({ row, name: `${row.label || t('extras.card', { n: s + 1 })} (${t('extras.card.short')})` })),
+  ];
+  for (const { row, name } of named) {
     row.values.forEach((v, c) => {
       if (v === null || v === 0) return;
-      rows.push({ cells: [row.label || t('extras.free', { n: s + 1 }), colName(c), money(v)], tones: ['', '', tone(v)] });
+      rows.push({ cells: [name, colName(c), money(v)], tones: ['', '', tone(v)] });
     });
-  });
+  }
   extras.transfer.forEach((v, c) => {
     if (v === null || v === 0) return;
     rows.push({ cells: [t('extras.transfer'), colName(c), money(v)], tones: ['', '', tone(v)] });

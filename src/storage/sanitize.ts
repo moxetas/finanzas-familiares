@@ -118,7 +118,7 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
     payments.push(pay);
   }
 
-  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+|f[0-2]_c\d+|t_c\d+|d\d+)$/, (key) => {
+  const overrides = numericDict(root['overrides'], /^\d{4}-\d{2}_([ip]\d+|r\d+_c\d+|f\d_c\d+|t_c\d+|d\d+)$/, (key) => {
     const m = /_([ip])(\d+)$/.exec(key);
     if (!m) return true; // cifra de un mes de `history`, fila libre o traspaso
     const [, kind, idx] = m;
@@ -168,13 +168,13 @@ export function sanitizeData(raw: unknown, fallbackYear: number, defaultAccountN
   if (isObj(cfg['freeLabels'])) {
     for (const [k, v] of Object.entries(cfg['freeLabels']).slice(0, 2000)) {
       const label = cleanText(v, 80);
-      if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && label) freeLabels[k] = label;
+      if (/^\d{4}-\d{2}_f\d$/.test(k) && label) freeLabels[k] = label;
     }
   }
   const freeDom: Record<string, string> = {};
   if (isObj(cfg['freeDom'])) {
     for (const [k, v] of Object.entries(cfg['freeDom']).slice(0, 2000)) {
-      if (/^\d{4}-\d{2}_f[0-2]$/.test(k) && typeof v === 'string' && /^[\w-]{1,60}@\d{4}-\d{2}-\d{2}$/.test(v)) freeDom[k] = v;
+      if (/^\d{4}-\d{2}_f\d$/.test(k) && typeof v === 'string' && /^[\w-]{1,60}@\d{4}-\d{2}-\d{2}$/.test(v)) freeDom[k] = v;
     }
   }
   const freeRowsBefore = cleanText(cfg['freeRowsBefore'], 120);

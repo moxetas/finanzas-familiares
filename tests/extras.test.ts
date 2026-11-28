@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blankData, computeYear, monthExtras, setFreeCell, setFreeLabel, setTransferCell } from '../src/calc';
+import { blankData, CARD_SLOT0, computeYear, FREE_ROWS, monthExtras, setFreeCell, setFreeLabel, setTransferCell } from '../src/calc';
 import { sanitizeData } from '../src/storage/sanitize';
 
 const base = () => {
@@ -38,6 +38,22 @@ describe('filas libres y traspaso', () => {
     expect(monthExtras(back, '2026-11', 2)).toEqual(monthExtras(d, '2026-11', 2));
     expect(back.config.freeRowsBefore).toBe('Seguro Hogar');
     expect(back.overrides['2026-11_t_c0']).toBe(-300);
+  });
+
+  it('hay 5 filas libres y 5 de tarjeta; las de tarjeta cuentan en el mes y se guardan', () => {
+    let d = setFreeCell(base(), '2027-02', 4, 0, -10);
+    d = setFreeCell(d, '2027-02', CARD_SLOT0, 1, -14.99);
+    d = setFreeLabel(d, '2027-02', CARD_SLOT0 + 4, 'Amazon Prime');
+    d = setFreeCell(d, '2027-02', CARD_SLOT0 + 4, 1, -4.99);
+    const feb = computeYear(d).months[1]!;
+    expect(FREE_ROWS).toBe(5);
+    expect(feb.extras.free).toHaveLength(5);
+    expect(feb.extras.card).toHaveLength(5);
+    expect(feb.extras.card[4]).toEqual({ label: 'Amazon Prime', values: [null, -4.99] });
+    expect(feb.delta).toEqual([-10, -19.98]);
+    expect(feb.spending).toBe(29.98);
+    const back = sanitizeData(JSON.parse(JSON.stringify(d)), 2027, 'A');
+    expect(monthExtras(back, '2027-02', 2)).toEqual(monthExtras(d, '2027-02', 2));
   });
 
   it('vaciar una celda la quita', () => {

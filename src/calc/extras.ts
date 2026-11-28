@@ -1,7 +1,9 @@
 /**
  * Filas extra de cada mes (en todos los meses, también los de años anteriores):
- * - 3 «filas libres»: nombre e importes que se escriben mes a mes. Un importe
+ * - 5 «filas libres»: nombre e importes que se escriben mes a mes. Un importe
  *   negativo es un gasto y uno positivo, un ingreso.
+ * - 5 filas para los cargos de la tarjeta de crédito (Netflix, Amazon Prime…):
+ *   funcionan igual que las libres y van en una tabla aparte, debajo de la del mes.
  * - «Traspaso»: mover dinero entre cuentas ese mes (negativo en la que sale,
  *   positivo en la que entra). Cambia los saldos pero no es gasto ni ingreso.
  *
@@ -12,14 +14,24 @@
 import { round2 } from './money';
 import type { AppData } from './types';
 
-export const FREE_ROWS = 3;
+export const FREE_ROWS = 5;
+/** Filas de los cargos de la tarjeta; se guardan en las filas `f5`…`f9`. */
+export const CARD_ROWS = 5;
+export const CARD_SLOT0 = 5;
 
 export const freeCellKey = (ym: string, slot: number, col: number) => `${ym}_f${slot}_c${col}`;
 export const freeLabelKey = (ym: string, slot: number) => `${ym}_f${slot}`;
 export const transferKey = (ym: string, col: number) => `${ym}_t_c${col}`;
 
+export interface ExtraRow {
+  label: string;
+  values: (number | null)[];
+}
+
 export interface MonthExtras {
-  free: { label: string; values: (number | null)[] }[];
+  free: ExtraRow[];
+  /** Cargos de la tarjeta (fila `CARD_SLOT0 + i`). */
+  card: ExtraRow[];
   transfer: (number | null)[];
 }
 
@@ -31,11 +43,13 @@ function read(data: AppData, key: string): number | null {
 /** Filas extra de un mes con `cols` columnas (cuentas). */
 export function monthExtras(data: AppData, ym: string, cols: number): MonthExtras {
   const labels = data.config.freeLabels ?? {};
+  const row = (s: number): ExtraRow => ({
+    label: labels[freeLabelKey(ym, s)] ?? '',
+    values: Array.from({ length: cols }, (_, c) => read(data, freeCellKey(ym, s, c))),
+  });
   return {
-    free: Array.from({ length: FREE_ROWS }, (_, s) => ({
-      label: labels[freeLabelKey(ym, s)] ?? '',
-      values: Array.from({ length: cols }, (_, c) => read(data, freeCellKey(ym, s, c))),
-    })),
+    free: Array.from({ length: FREE_ROWS }, (_, s) => row(s)),
+    card: Array.from({ length: CARD_ROWS }, (_, i) => row(CARD_SLOT0 + i)),
     transfer: Array.from({ length: cols }, (_, c) => read(data, transferKey(ym, c))),
   };
 }
@@ -45,7 +59,7 @@ export function extrasEffect(extras: MonthExtras): { delta: number[]; income: nu
   const delta = extras.transfer.map((v) => v ?? 0);
   let income = 0;
   let spending = 0;
-  for (const row of extras.free) {
+  for (const row of [...extras.free, ...extras.card]) {
     row.values.forEach((v, c) => {
       if (v === null) return;
       delta[c] = (delta[c] ?? 0) + v;

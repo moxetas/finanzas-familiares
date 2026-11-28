@@ -109,3 +109,34 @@ export function moveRow(order: readonly string[] | undefined, shown: readonly st
   slots.forEach((slot, i) => (list[slot] = moved[i]!));
   return list.slice(0, MAX_ROW_ORDER);
 }
+
+// ── Orden de las columnas (cuentas) ────────────────────────────────────────
+
+/** Orden nuevo tras intercambiar de sitio las cuentas `a` y `b`. */
+export function swapAccounts(order: readonly number[], a: number, b: number): number[] {
+  const next = [...order];
+  const i = next.indexOf(a);
+  const j = next.indexOf(b);
+  if (i < 0 || j < 0) return next;
+  next[i] = b;
+  next[j] = a;
+  return next;
+}
+
+/**
+ * Orden en que se ven las columnas de un mes de la hoja. `colAccount[c]` es la
+ * cuenta de la app con el mismo nombre que la columna `c`, o -1. Las columnas
+ * de una cuenta siguen el orden de las cuentas; las demás van detrás de la
+ * columna que tenían delante.
+ */
+export function columnOrder(colAccount: readonly number[], order: readonly number[]): number[] {
+  const pos = new Map(order.map((a, i) => [a, i] as const));
+  let last = -0.5;
+  const rank = colAccount.map((a) => {
+    const p = a >= 0 ? pos.get(a) : undefined;
+    if (p === undefined) return last + 0.001;
+    last = p;
+    return p;
+  });
+  return colAccount.map((_, i) => i).sort((x, y) => rank[x]! - rank[y]! || x - y);
+}

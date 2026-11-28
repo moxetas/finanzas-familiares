@@ -745,6 +745,37 @@ textarea {
   min-height: 40px;
   margin: 0;
 }
+/* ‹ › para mover las columnas de las cuentas: solo en modo «Ordenar». */
+.col-move {
+  display: none;
+}
+.card.is-ordering .plan-table .col-move {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.col-move-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  font: 700 1.25rem/1 inherit;
+  cursor: pointer;
+}
+.col-move-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+[dir='rtl'] .col-move-btn > span {
+  display: inline-block;
+  transform: scaleX(-1);
+}
 .card.is-ordering [aria-pressed='true'] {
   border-color: var(--accent);
   color: var(--accent);
