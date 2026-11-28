@@ -436,32 +436,45 @@ function planCard(ctx: Ctx, m: MonthResult, month: number): HTMLElement {
 
   const extraOpts = { ym: m.key, colNames: accounts.map((a) => a.name), totalCol: several, noteCol: hasNotes, order };
   let freePlaced = false;
-  // Una sola lista, sin bloques: cada fila se puede mover a cualquier sitio con
-  // «Ordenar» (el color ya dice si entra o sale). Sin orden guardado, salen
-  // como antes: por bloques propios y luego ingresos, gastos, pagos y ahorro.
+  // Una sola lista, sin bloques: cada concepto se puede mover a cualquier sitio
+  // con «Ordenar» (el color ya dice si entra o sale). Solo los pagos que no son
+  // mensuales van aparte, en su bloque al final (y se ordenan dentro de él).
+  // Sin orden guardado, salen como antes: por bloques propios y luego por tipo.
   // Los apuntes no se mueven.
   const shown = new Map<string, string[]>();
   const sections = ctx.data.config.sections ?? [];
   const rest = m.lines.filter((l) => !sections.includes(l.group));
-  const base = [...sections.flatMap((name) => m.lines.filter((l) => l.group === name)), ...GROUPS.flatMap((g) => rest.filter((l) => groupOf(l) === g.type))];
-  const keys = rowKeys(base.map((l) => (l.kind === 'entry' ? null : l.name)));
-  const positions = sortedPositions(keys, ctx.data.config.rowOrder);
-  const lineKeys = positions.map((i) => keys[i]!);
-  shown.set('all', lineKeys.filter((k): k is string => k !== null));
-  positions.forEach((i, li) => {
-    const line = base[i]!;
-    if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
-      rows.push(...freeRows(ctx, m.extras, extraOpts));
-      freePlaced = true;
-    }
-    rows.push(lineRow(ctx, line, month, order, several, hasNotes, lineKeys[li] === null ? undefined : 'all'));
-  });
+  const all = [...sections.flatMap((name) => m.lines.filter((l) => l.group === name)), ...GROUPS.flatMap((g) => rest.filter((l) => groupOf(l) === g.type))];
+  const listRows = (group: string, lines: Line[]) => {
+    const keys = rowKeys(lines.map((l) => (l.kind === 'entry' ? null : l.name)));
+    const positions = sortedPositions(keys, ctx.data.config.rowOrder);
+    const lineKeys = positions.map((i) => keys[i]!);
+    shown.set(group, lineKeys.filter((k): k is string => k !== null));
+    positions.forEach((i, li) => {
+      const line = lines[i]!;
+      if (!freePlaced && line.kind !== 'entry' && isFreeRowsAnchor(line.name, ctx.data.config.freeRowsBefore)) {
+        rows.push(...freeRows(ctx, m.extras, extraOpts));
+        freePlaced = true;
+      }
+      rows.push(lineRow(ctx, line, month, order, several, hasNotes, lineKeys[li] === null ? undefined : group));
+    });
+  };
+  listRows('all', all.filter((l) => l.kind !== 'payment'));
+  // Las filas libres van con los conceptos, antes del bloque de pagos.
+  if (!freePlaced) {
+    rows.push(...freeRows(ctx, m.extras, extraOpts));
+    freePlaced = true;
+  }
+  rows.push(transferRow(ctx, m.extras, extraOpts));
+  const payments = all.filter((l) => l.kind === 'payment');
+  if (payments.length) {
+    rows.push(h('tr', { class: 'row-group' }, h('th', { scope: 'rowgroup', colspan: span }, t('months.group.Pago'))));
+    listRows('pay', payments);
+  }
 
   if (m.lines.length === 0) {
     rows.push(h('tr', null, h('td', { colspan: span, class: 'empty-cell' }, t('months.empty'))));
   }
-  if (!freePlaced) rows.push(...freeRows(ctx, m.extras, extraOpts));
-  rows.push(transferRow(ctx, m.extras, extraOpts));
 
   rows.push(
     h('tr', { class: 'row-sum' }, h('th', { scope: 'row' }, t('months.row.total')), order.map((c) => numCell(m.delta[c] ?? 0)), several ? numCell(sum(m.delta)) : null, noteCell()),
